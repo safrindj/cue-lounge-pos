@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/start-session", "destination": "/start-session.html" },
+    { "source": "/active-session", "destination": "/active-session.html" },
+    { "source": "/billing", "destination": "/billing.html" },
+    { "source": "/customers", "destination": "/customers.html" },
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/expenses", "destination": "/expenses.html" },
+    { "source": "/sales-reports", "destination": "/sales-reports.html" },
+    { "source": "/bills-history", "destination": "/bills-history.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/monthly-summary", "destination": "/monthly-summary.html" }
+  ]
+}
