@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — CueClub Manager</title>
     <script>
-        if (sessionStorage.getItem("cueclubLoggedIn") !== "true") {
-            window.location.replace("login.html");
-        }
+        // ✅ FIXED: accepts EITHER session key — no more redirect loop
+        (function () {
+            var loggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true"
+                || sessionStorage.getItem("currentStaff") !== null;
+            if (!loggedIn) {
+                window.location.replace("login.html");
+            }
+        })();
     </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -39,51 +44,35 @@
         .dot-maintenance { background: #444; }
         .table-type { font-size: 0.75rem; text-transform: uppercase; color: #888; background: #f0f0f0; display: inline-block; padding: 2px 8px; border-radius: 10px; margin-top: 4px; }
         .session-time { font-family: monospace; font-size: 0.85rem; color: #555; margin-top: 6px; }
-        .quick-btn { border-radius: 10px; padding: 14px 10px; text-align: center; border: none; transition: all 0.2s; }
+        .quick-btn { border-radius: 10px; padding: 14px 10px; text-align: center; border: none; transition: all 0.2s; text-decoration: none; }
         .quick-btn:hover { transform: scale(1.03); }
         .section-title { font-size: 1rem; font-weight: 600; color: #333; margin: 24px 0 12px; }
         .discount-line { color: var(--success); }
         .expense-line { color: var(--danger); }
+        .staff-tag { font-size: 0.8rem; opacity: 0.85; }
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
-<script>
-function checkAuth() {
-  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
-  if (!isLoggedIn) {
-    window.location.replace("login.html");
-  }
-}
-checkAuth();
-</script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <h4 class="mb-0"><i class="fas fa-pool-8-ball me-2"></i> CueClub Manager</h4>
-            <!-- 🚪 LOGOUT BUTTON -->
-<button class="btn btn-sm btn-outline-danger" onclick="logout()">
-  <i class="fas fa-sign-out-alt"></i> Logout
-</button>
-
+            <div class="staff-tag" id="loggedInStaff">👤 Staff</div>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-sm btn-light" onclick="refreshData()" title="Refresh">
                 <i class="fas fa-sync-alt"></i>
             </button>
             <button class="btn btn-sm btn-outline-light" onclick="logout()" title="Sign out">
-                <i class="fas fa-sign-out-alt me-1"></i> Sign Out
+                <i class="fas fa-sign-out-alt me-1"></i> Logout
             </button>
         </div>
     </div>
 </div>
 
 <div class="container px-3 mt-4">
-
     <!-- 📊 Quick Stats Row 1 -->
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
@@ -139,9 +128,7 @@ checkAuth();
 
     <!-- 🎱 Table Status Grid -->
     <h5 class="section-title mb-2"><i class="fas fa-border-all me-2"></i> Table Status</h5>
-    <div class="row g-2 mb-4" id="tablesGrid">
-        <!-- Tables rendered by JavaScript -->
-    </div>
+    <div class="row g-2 mb-4" id="tablesGrid"></div>
 
     <!-- ⚡ Quick Actions -->
     <h5 class="section-title mb-2"><i class="fas fa-bolt me-2"></i> Quick Actions</h5>
@@ -153,19 +140,18 @@ checkAuth();
             </a>
         </div>
         <div class="col-4">
-            <a href="#" class="quick-btn bg-primary text-white d-block" onclick="alert('Coming Soon!')">
+            <a href="bills-history.html" class="quick-btn bg-primary text-white d-block">
                 <i class="fas fa-file-invoice fa-lg d-block mb-1"></i>
                 Today's Bills
             </a>
         </div>
         <div class="col-4">
-            <a href="#" class="quick-btn bg-secondary text-white d-block" onclick="alert('Coming Soon!')">
+            <a href="customers.html" class="quick-btn bg-secondary text-white d-block">
                 <i class="fas fa-users fa-lg d-block mb-1"></i>
                 Customers
             </a>
         </div>
     </div>
-
 </div>
 
 <script>
@@ -177,15 +163,8 @@ const GOOGLE_SCRIPT_URL = "";
 // Dashboard Data — sample data
 let dashboard = {
     stats: {
-        totalTables: 6,
-        available: 2,
-        occupied: 4,
-        activeSessions: 4,
-        tableIncome: 14200,
-        productSales: 4250,
-        discounts: 380,
-        expenses: 1200,
-        netIncome: 16870
+        totalTables: 6, available: 2, occupied: 4, activeSessions: 4,
+        tableIncome: 14200, productSales: 4250, discounts: 380, expenses: 1200
     },
     tables: [
         { id: "T01", name: "Table 01", type: "Snooker", status: "available", sessionTime: "" },
@@ -200,36 +179,23 @@ let dashboard = {
 // ==========================================
 // INIT
 // ==========================================
-window.onload = function() {
-    setTodayDate();
+window.onload = function () {
+    showLoggedInStaff();
     renderTables();
-    loadDashboardData();
+    updateStatsDisplay();
 };
 
-function setTodayDate() {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById("todayDate").textContent = new Date().toLocaleDateString('en-GB', options);
-}
-
-function loadDashboardData() {
-    // ✅ When Google Script is deployed, uncomment this block:
-    /*
-    if (GOOGLE_SCRIPT_URL) {
-        fetch(GOOGLE_SCRIPT_URL + "?action=getDashboard")
-            .then(res => res.json())
-            .then(data => {
-                dashboard.stats.available = data.availableTables;
-                dashboard.stats.occupied = data.occupiedTables;
-                dashboard.stats.activeSessions = data.activeSessions;
-                dashboard.stats.tableIncome = data.tableIncome;
-                dashboard.stats.productSales = data.productIncome;
-                dashboard.stats.discounts = data.totalDiscounts;
-                dashboard.stats.expenses = data.expenses;
-                updateStatsDisplay();
-            });
-    }
-    */
-    updateStatsDisplay();
+function showLoggedInStaff() {
+    try {
+        var raw = sessionStorage.getItem("currentStaff");
+        if (raw) {
+            var s = JSON.parse(raw);
+            if (s && s.name) {
+                document.getElementById("loggedInStaff").textContent =
+                    "👤 " + s.name + (s.role ? " — " + s.role : "");
+            }
+        }
+    } catch (e) {}
 }
 
 function updateStatsDisplay() {
@@ -237,43 +203,38 @@ function updateStatsDisplay() {
     document.getElementById("availableTables").textContent = dashboard.stats.available;
     document.getElementById("occupiedTables").textContent = dashboard.stats.occupied;
     document.getElementById("activeSessions").textContent = dashboard.stats.activeSessions;
-    
     document.getElementById("todayTableIncome").textContent = formatCurrency(dashboard.stats.tableIncome);
     document.getElementById("todayProductSales").textContent = formatCurrency(dashboard.stats.productSales);
-    
-    const net = dashboard.stats.tableIncome + dashboard.stats.productSales 
-                - dashboard.stats.discounts - dashboard.stats.expenses;
+    var net = dashboard.stats.tableIncome + dashboard.stats.productSales
+        - dashboard.stats.discounts - dashboard.stats.expenses;
     document.getElementById("todayTotal").textContent = formatCurrency(net);
 }
 
 function renderTables() {
-    const container = document.getElementById("tablesGrid");
+    var container = document.getElementById("tablesGrid");
     container.innerHTML = "";
-    
-    dashboard.tables.forEach(table => {
-        const statusClass = getStatusClass(table.status);
-        const statusText = table.status.charAt(0).toUpperCase() + table.status.slice(1);
-        
-        container.innerHTML += `
-            <div class="col-6 col-sm-4">
-                <div class="table-card" onclick="openTableDetail('${table.id}')">
-                    <h6 class="mb-1">${table.name}</h6>
-                    <span class="table-type">${table.type}</span>
-                    <div class="mt-2">
-                        <span class="status-dot ${statusClass}"></span>
-                        <span class="small">${statusText}</span>
-                    </div>
-                    ${table.sessionTime 
-                        ? `<div class="session-time"><i class="fas fa-clock"></i> ${table.sessionTime}</div>` 
-                        : ''}
-                </div>
-            </div>
-        `;
+    dashboard.tables.forEach(function (table) {
+        var statusClass = getStatusClass(table.status);
+        var statusText = table.status.charAt(0).toUpperCase() + table.status.slice(1);
+        container.innerHTML +=
+            '<div class="col-6 col-sm-4">' +
+                '<div class="table-card" onclick="openTableDetail(\'' + table.id + '\')">' +
+                    '<h6 class="mb-1">' + table.name + '</h6>' +
+                    '<span class="table-type">' + table.type + '</span>' +
+                    '<div class="mt-2">' +
+                        '<span class="status-dot ' + statusClass + '"></span>' +
+                        '<span class="small">' + statusText + '</span>' +
+                    '</div>' +
+                    (table.sessionTime
+                        ? '<div class="session-time"><i class="fas fa-clock"></i> ' + table.sessionTime + '</div>'
+                        : '') +
+                '</div>' +
+            '</div>';
     });
 }
 
 function getStatusClass(status) {
-    switch(status) {
+    switch (status) {
         case 'available': return 'dot-available';
         case 'occupied': return 'dot-occupied';
         case 'reserved': return 'dot-reserved';
@@ -283,45 +244,34 @@ function getStatusClass(status) {
 }
 
 function openTableDetail(tableId) {
-    const table = dashboard.tables.find(t => t.id === tableId);
+    var table = dashboard.tables.find(function (t) { return t.id === tableId; });
     if (table.status === 'available' || table.status === 'reserved') {
         window.location.href = 'start-session.html';
     } else if (table.status === 'occupied') {
-        alert(`📋 ${table.name} — Session in progress\n\nClick OK to view active session`);
-        // window.location.href = 'active-session.html';
+        alert("📋 " + table.name + " — Session in progress");
     } else {
-        alert(`${table.name} — Currently unavailable (${table.status})`);
+        alert(table.name + " — Currently unavailable (" + table.status + ")");
     }
 }
 
 function refreshData() {
-    loadDashboardData();
+    updateStatsDisplay();
     renderTables();
     alert("✅ Dashboard refreshed!");
 }
 
+// ✅ FIXED: single logout — clears BOTH keys, no duplicate
 function logout() {
-    sessionStorage.removeItem("cueclubLoggedIn");
-    window.location.replace("login.html");
+    if (confirm("Are you sure you want to logout?")) {
+        sessionStorage.removeItem("currentStaff");
+        sessionStorage.removeItem("cueclubLoggedIn");
+        window.location.replace("login.html");
+    }
 }
 
 function formatCurrency(amount) {
     return "Rs. " + amount.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 </script>
-<!-- ===================================== -->
-<!-- 🚪 LOGOUT FUNCTION (FIXED) -->
-<script>
-function logout() {
-  if (confirm("Are you sure you want to logout?")) {
-    sessionStorage.removeItem("currentStaff");
-    sessionStorage.removeItem("cueclubLoggedIn");
-    window.location.replace("login.html");
-  }
-}
-</script>
-<!-- ===================================== -->
-
 </body>
 </html>

@@ -1,4 +1,4 @@
-da<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -88,18 +88,14 @@ da<!DOCTYPE html>
         </form>
     </main>
     <script>
-        const existingSession = sessionStorage.getItem("currentStaff");
-        if (existingSession) {
-            try {
-                const staff = JSON.parse(existingSession);
-                if (staff && typeof staff.name === "string" && typeof staff.role === "string") {
-                    window.location.replace("./dashboard.html");
-                } else {
-                    sessionStorage.removeItem("currentStaff");
-                }
-            } catch {
-                sessionStorage.removeItem("currentStaff");
-            }
+        // ✅ FIX: check BOTH session keys — if either exists, user is logged in
+        function isLoggedIn() {
+            return sessionStorage.getItem("cueclubLoggedIn") === "true"
+                || sessionStorage.getItem("currentStaff") !== null;
+        }
+
+        if (isLoggedIn()) {
+            window.location.replace("./dashboard.html");
         }
 
         document.getElementById("loginForm").addEventListener("submit", (event) => {
@@ -111,11 +107,15 @@ da<!DOCTYPE html>
                 return;
             }
             try {
-                sessionStorage.setItem("currentStaff", JSON.stringify({
+                const staffData = JSON.stringify({
                     name,
                     role,
                     loginTime: new Date().toISOString()
-                }));
+                });
+                // ✅ FIX: set BOTH keys so every page's auth check passes
+                sessionStorage.setItem("currentStaff", staffData);
+                sessionStorage.setItem("cueclubLoggedIn", "true");
+
                 window.location.assign("./dashboard.html");
             } catch {
                 document.getElementById("loginError").textContent = "Your session could not be saved. Please try again.";
