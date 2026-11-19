@@ -82,6 +82,11 @@ checkAuth();
         <div class="grand-total d-flex justify-content-between total-row"><span>💰 GRAND TOTAL</span><span id="grandTotal"></span></div>
     </section>
 
+    <section class="bill-card p-4 mb-3" id="splitSection" aria-label="Split by player" style="display:none">
+        <h2 class="h6 mb-3"><i class="fas fa-users me-2"></i>Split by Player <span class="text-muted small">— each player gets their own bill via WhatsApp</span></h2>
+        <div id="playerSplitList"></div>
+    </section>
+
     <section class="bill-card p-3 mb-3" id="customerSection" aria-label="Customer and discount">
         <h2 class="h6 mb-2"><i class="fas fa-user-check me-2"></i>Customer &amp; Discount</h2>
         <div class="row align-items-center">
@@ -210,6 +215,7 @@ function applyDiscount() {
     byId('grandTotal').textContent = money(bill.grandTotal);
     byId('amountDue').textContent = money(bill.grandTotal);
     calculateBalance();
+    renderSplit();
 }
 
 function calculateBalance() {
@@ -329,7 +335,75 @@ document.querySelectorAll('.payment-option').forEach(option => {
     });
 });
 
+function escapeHtml(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function loadPendingBill(){
+    let pending = null;
+    try { pending = JSON.parse(localStorage.getItem("cueclubPendingBill") || "null"); } catch(e){ pending = null; }
+    if (!pending) return;
+    localStorage.removeItem("cueclubPendingBill");
+    bill.billNo = pending.billNo;
+    bill.sessionId = pending.sessionId;
+    bill.tableName = pending.tableName + " — " + (pending.tableType || "");
+    bill.durationMin = pending.durationMin;
+    bill.hourlyRate = pending.hourlyRate;
+    bill.startTime = new Date(pending.startTime);
+    bill.endTime = new Date(pending.endTime);
+    bill.players = (pending.players || []).length;
+    bill.productTotal = (pending.players || []).reduce((t, p) => t + (p.itemsSubtotal || 0), 0);
+    const agg = {};
+    (pending.players || []).forEach(p => (p.items || []).forEach(it => { agg[it.name] = (agg[it.name] || 0) + Number(it.qty || 0); }));
+    bill.productList = Object.keys(agg).map(k => agg[k] + "× " + k).join(", ") || "No products";
+    bill.customerMobile = "";
+    bill.discountPercent = 0;
+    bill.playerSplit = pending.players || [];
+}
+
+function buildWhatsAppText(p, tableShare, total){
+    const biz = (window.APP_SETTINGS && window.APP_SETTINGS.bizName) || "CueClub";
+    const items = (p.items || []).length
+        ? p.items.map(it => "  " + it.name + " x " + it.qty + " = " + money(it.lineTotal)).join("\n")
+        : "  (none)";
+    return "*" + biz + "*\nBill " + bill.billNo + "\nTable: " + bill.tableName +
+        "\nDuration: " + bill.durationMin + " min\nDate: " + formatDate(new Date()) +
+        "\n\nYour share:\n  Table time: " + money(tableShare) + "\nItems:\n" + items +
+        "\n\n*Your total: " + money(total) + "*\nThank you!";
+}
+
+function renderSplit(){
+    const section = byId("splitSection");
+    const list = byId("playerSplitList");
+    if (!bill.playerSplit || bill.playerSplit.length === 0){ section.style.display = "none"; return; }
+    section.style.display = "";
+    const n = bill.playerSplit.length;
+    const tableShare = (bill.durationMin / 60 * bill.hourlyRate) / n;
+    const ratio = bill.subtotal > 0 ? bill.grandTotal / bill.subtotal : 1;
+    list.innerHTML = bill.playerSplit.map(p => {
+        const itemsHtml = (p.items || []).length
+            ? p.items.map(it => '<div class="d-flex justify-content-between small text-muted"><span>' + escapeHtml(it.name) + ' &times; ' + it.qty + '</span><span>' + money(it.lineTotal) + '</span></div>').join("")
+            : '<div class="small text-muted">No items</div>';
+        const sub = tableShare + (p.itemsSubtotal || 0);
+        const total = sub * ratio;
+        const waText = buildWhatsAppText(p, tableShare, total);
+        const digits = String(p.name || "").replace(/\D/g, "");
+        const waUrl = digits.length >= 7
+            ? "https://wa.me/" + digits + "?text=" + encodeURIComponent(waText)
+            : "https://wa.me/?text=" + encodeURIComponent(waText);
+        return '<div class="border rounded p-3 mb-2" style="border-left:4px solid var(--primary)">'
+            + '<div class="d-flex justify-content-between align-items-center mb-2">'
+            +   '<h6 class="mb-0"><i class="fas fa-user me-1"></i>' + escapeHtml(p.name) + '</h6>'
+            +   '<a class="btn btn-sm btn-success" href="' + waUrl + '" target="_blank" rel="noopener"><i class="fab fa-whatsapp me-1"></i>WhatsApp</a>'
+            + '</div>'
+            + '<div class="d-flex justify-content-between small"><span class="text-muted">Table share (' + n + ' player' + (n>1?'s':'') + ')</span><span>' + money(tableShare) + '</span></div>'
+            + itemsHtml
+            + '<div class="d-flex justify-content-between fw-bold mt-2"><span>Total' + (bill.discountPercent > 0 ? ' (incl. ' + bill.discountPercent + '% disc)' : '') + '</span><span class="text-danger">' + money(total) + '</span></div>'
+            + '</div>';
+    }).join("");
+}
+
+loadPendingBill();
 renderBill();
+renderSplit();
 </script>
 <script src="sidebar.js"></script>
 </body>

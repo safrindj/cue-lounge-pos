@@ -322,18 +322,30 @@ function endSession(id){
     (s.players||[]).forEach(p => (p.items||[]).forEach(it => itemsFlat.push({ player:p.name, name:it.name, price:it.price, qty:it.qty, lineTotal:it.price*it.qty })));
     if (!confirm("End "+s.tableName+"?\nDuration: "+fmtDuration(elapsedMs(s))+" ("+mins+" min)\nTable: "+money(tc)+"  ·  Extras: "+money(prod)+"\nTOTAL: "+money(grand))) return;
 
-    let bills = [];
-    try { bills = JSON.parse(localStorage.getItem(BILLS_KEY)||"[]") || []; } catch(e){ bills = []; }
-    bills.unshift({
-        id:"BILL-"+Date.now().toString(36).toUpperCase(), sessionId:s.id, table:s.tableName, tableType:s.tableType,
-        hourlyRate:s.hourlyRate, players:(s.players||[]).map(p=>p.name), startTime:s.startTime, endTime:new Date().toISOString(),
-        durationMin:mins, tableCharge:Math.round(tc*100)/100, productTotal:Math.round(prod*100)/100,
-        items:itemsFlat, total:Math.round(grand*100)/100, openedBy:s.openedBy||"Staff", status:"Paid"
-    });
-    localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
-    sessions = sessions.filter(x=>x.id!==id);
-    saveSessions(); render();
-    alert("✅ Session ended — "+s.tableName+" is now free.\nBill saved (total: "+money(grand)+").");
+    // Hand off to the Billing page with per-player split data
+    const pending = {
+        billNo: "BILL-" + Date.now().toString(36).toUpperCase(),
+        sessionId: s.id,
+        tableName: s.tableName,
+        tableType: s.tableType || "",
+        hourlyRate: s.hourlyRate,
+        startTime: s.startTime,
+        endTime: new Date().toISOString(),
+        durationMin: mins,
+        tableCharge: Math.round(tc*100)/100,
+        productTotal: Math.round(prod*100)/100,
+        subtotal: Math.round(grand*100)/100,
+        openedBy: s.openedBy || "Staff",
+        players: (s.players||[]).map(p => ({
+            name: p.name,
+            items: (p.items||[]).map(it => ({ name: it.name, price: it.price, qty: it.qty, lineTotal: it.price*it.qty })),
+            itemsSubtotal: Math.round(playerSubtotal(p)*100)/100
+        }))
+    };
+    localStorage.setItem("cueclubPendingBill", JSON.stringify(pending));
+    sessions = sessions.filter(x => x.id !== id);
+    saveSessions();
+    window.location.href = "Billing.html";
 }
 
 document.getElementById("apName").addEventListener("keydown", e => { if(e.key==="Enter") confirmAddPlayer(); });
