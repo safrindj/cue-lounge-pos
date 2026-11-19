@@ -97,6 +97,7 @@ checkAuth();
 
 </div>
 
+<script src="app-settings.js"></script>
 <script>
 // ==========================================
 // CONFIG — Replace with your Web App URL later
@@ -118,7 +119,8 @@ const tables = [
 
 // ==========================================
 // INIT
-// ==========================================
+// Apply saved pricing from Settings
+ tables.forEach(function (t) { t.rate = APP_SETTINGS.rateForType(t.type); });
 window.onload = function() {
     renderTables();
     addPlayerRow(); // start with 1 player row

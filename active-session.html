@@ -87,12 +87,13 @@ checkAuth();
 
     <!-- 🥤 QUICK SALES -->
     <h6 class="section-title mb-2"><i class="fas fa-shopping-basket me-2"></i> Quick Add to Bill</h6>
+    <small class="text-muted d-block mb-2">Tap a product, then select which player to charge.</small>
     <div class="row g-2 mb-3">
-        <div class="col-4"><button class="quick-btn w-100" onclick="addProduct('P01','Coca-Cola',250)">🥤 Coke<br><small>Rs.250</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="addProduct('P03','Water Bottle',150)">💧 Water<br><small>Rs.150</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="addProduct('P04','Hot Coffee',300)">☕ Coffee<br><small>Rs.300</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="addProduct('P05','Cue Chalk',100)">🧱 Chalk<br><small>Rs.100</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="addProduct('P02','Pepsi',250)">🥤 Pepsi<br><small>Rs.250</small></button></div>
+        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P01','Coca-Cola',250)">🥤 Coke<br><small>Rs.250</small></button></div>
+        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P03','Water Bottle',150)">💧 Water<br><small>Rs.150</small></button></div>
+        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P04','Hot Coffee',300)">☕ Coffee<br><small>Rs.300</small></button></div>
+        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P05','Cue Chalk',100)">🧱 Chalk<br><small>Rs.100</small></button></div>
+        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P02','Pepsi',250)">🥤 Pepsi<br><small>Rs.250</small></button></div>
         <div class="col-4"><button class="quick-btn w-100 btn-outline-primary" onclick="openMoreProducts()">➕ More</button></div>
     </div>
 
@@ -140,7 +141,23 @@ checkAuth();
     </div>
 </div>
 
+<!-- PICK PLAYER MODAL — charge an item to a specific player -->
+<div class="modal fade" id="pickPlayerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Charge item to which player?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="pickerPlayerList"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="app-settings.js"></script>
 <script>
 // ==========================================
 // CONFIG
@@ -158,12 +175,13 @@ let session = {
     pausedTime: 0,
     totalPausedDuration: 0,
     players: [
-        { id:1, name:"Player 1", joinTime: new Date(new Date().getTime() - 5142000) },
-        { id:2, name:"Player 2", joinTime: new Date(new Date().getTime() - 5142000) }
+        { id:1, name:"Player 1", joinTime: new Date(new Date().getTime() - 5142000), items: [] },
+        { id:2, name:"Player 2", joinTime: new Date(new Date().getTime() - 5142000), items: [] }
     ],
     billItems: []
 };
 
+session.hourlyRate = APP_SETTINGS.rateForType(session.tableType);
 let timerInterval;
 let addPlayerModal;
 
@@ -172,8 +190,10 @@ let addPlayerModal;
 // ==========================================
 window.onload = function() {
     addPlayerModal = new bootstrap.Modal(document.getElementById('addPlayerModal'));
+    pickPlayerModal = new bootstrap.Modal(document.getElementById('pickPlayerModal'));
     renderSessionHeader();
     renderPlayers();
+    renderBillItems();
     startTimer();
 };
 
@@ -254,15 +274,16 @@ function escapeHtml(value) {
 function renderPlayers() {
     const list = document.getElementById("playerList");
     list.innerHTML = "";
-    
     session.players.forEach((p, idx) => {
+        const sub = playerSubtotal(p);
+        const count = (p.items || []).length;
         list.innerHTML += `
             <div class="player-item d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0">🧑 ${escapeHtml(p.name)}</h6>
-                    <small class="text-muted">Joined: ${formatTime(p.joinTime)}</small>
+                    <small class="text-muted">Joined: ${formatTime(p.joinTime)} · ${count} item(s) · <span class="text-accent fw-bold">Rs. ${sub.toFixed(2)}</span></small>
                 </div>
-                <button class="btn btn-sm btn-outline-danger" onclick="removePlayer(${idx})">
+                <button class="btn btn-sm btn-outline-danger" onclick="removePlayer(${idx})" title="Remove player (and their items)">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
@@ -284,7 +305,8 @@ function confirmAddPlayer() {
     const newPlayer = {
         id: Date.now(),
         name: name,
-        joinTime: new Date()
+        joinTime: new Date(),
+        items: []
     };
     session.players.push(newPlayer);
     renderPlayers();
@@ -333,22 +355,67 @@ function removePlayer(index) {
 // ==========================================
 // PRODUCTS & SALES
 // ==========================================
-function addProduct(productId, name, price) {
-    const existing = session.billItems.find(i => i.name === name);
+// ---- per-player bill items ----
+let pendingProduct = null;
+let pickPlayerModal;
+
+function playerSubtotal(p) {
+    if (!p.items) p.items = [];
+    return p.items.reduce((t, it) => t + it.price * it.qty, 0);
+}
+function grandProductTotal() {
+    return session.players.reduce((t, p) => t + playerSubtotal(p), 0);
+}
+function pickPlayerForProduct(productId, name, price) {
+    if (session.players.length === 0) {
+        alert("⚠️ Add at least one player first.");
+        return;
+    }
+    if (session.players.length === 1) {
+        addProductToPlayer(0, productId, name, price);
+        return;
+    }
+    pendingProduct = { id: productId, name: name, price: price };
+    renderPickerPlayers();
+    pickPlayerModal.show();
+}
+function renderPickerPlayers() {
+    const box = document.getElementById("pickerPlayerList");
+    box.innerHTML = "";
+    session.players.forEach((p, idx) => {
+        const sub = playerSubtotal(p);
+        box.innerHTML += `<button type="button" class="btn btn-outline-primary w-100 mb-2 text-start" onclick="confirmPickPlayer(${idx})">
+            <strong>${escapeHtml(p.name)}</strong>
+            <small class="text-muted d-block">Current bill: Rs. ${sub.toFixed(2)}</small>
+        </button>`;
+    });
+}
+function confirmPickPlayer(playerIdx) {
+    if (pendingProduct) {
+        addProductToPlayer(playerIdx, pendingProduct.id, pendingProduct.name, pendingProduct.price);
+    }
+    pendingProduct = null;
+    pickPlayerModal.hide();
+}
+function addProductToPlayer(playerIdx, productId, name, price) {
+    const p = session.players[playerIdx];
+    if (!p.items) p.items = [];
+    const existing = p.items.find(i => i.name === name);
     if (existing) {
         existing.qty++;
     } else {
-        session.billItems.push({ id:productId, name:name, price:price, qty:1 });
+        p.items.push({ id: productId, name: name, price: price, qty: 1 });
     }
+    renderPlayers();
     renderBillItems();
-    
-    // ✅ Save to Google Sheets (uncomment when ready)
+    // ✅ Save to Google Sheets (uncomment when ready) — include playerName
     /*
     fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({
             action: "addSale",
             sessionId: session.id,
+            playerName: p.name,
             productId: productId,
             qty: 1,
             unitPrice: price,
@@ -357,41 +424,47 @@ function addProduct(productId, name, price) {
     });
     */
 }
-
-function removeBillItem(index) {
-    session.billItems.splice(index, 1);
+function removePlayerItem(playerIdx, itemIdx) {
+    const p = session.players[playerIdx];
+    if (p && p.items) p.items.splice(itemIdx, 1);
+    renderPlayers();
     renderBillItems();
 }
-
 function renderBillItems() {
     const container = document.getElementById("billItems");
-    
-    if (session.billItems.length === 0) {
+    const anyItems = session.players.some(p => p.items && p.items.length > 0);
+    if (!anyItems) {
         container.innerHTML = '<p class="text-muted small text-center py-2">No items added yet</p>';
     } else {
         container.innerHTML = "";
-        session.billItems.forEach((item, idx) => {
-            container.innerHTML += `
-                <div class="sale-item">
+        session.players.forEach((p, pIdx) => {
+            if (!p.items || p.items.length === 0) return;
+            const sub = playerSubtotal(p);
+            let html = `<div class="player-item" style="border-left-color:var(--accent);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">🧑 ${escapeHtml(p.name)}</h6>
+                    <strong class="text-accent">Rs. ${sub.toFixed(2)}</strong>
+                </div>`;
+            p.items.forEach((item, iIdx) => {
+                html += `<div class="sale-item" style="background:#f8f9fa;">
                     <div>
                         <strong>${escapeHtml(item.name)}</strong>
                         <small class="text-muted d-block">Rs. ${item.price} × ${item.qty}</small>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <strong>Rs. ${(item.price * item.qty).toFixed(2)}</strong>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeBillItem(${idx})" aria-label="Remove ${escapeHtml(item.name)}">
+                        <button class="btn btn-sm btn-outline-danger" onclick="removePlayerItem(${pIdx},${iIdx})" aria-label="Remove ${escapeHtml(item.name)}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
-                </div>
-            `;
+                </div>`;
+            });
+            html += `</div>`;
+            container.innerHTML += html;
         });
     }
-
-    const productTotal = session.billItems.reduce((total, item) => total + item.price * item.qty, 0);
-    document.getElementById("productTotal").textContent = `Rs. ${productTotal.toFixed(2)}`;
+    document.getElementById("productTotal").textContent = `Rs. ${grandProductTotal().toFixed(2)}`;
 }
-
 function formatTime(date) {
     return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -401,12 +474,11 @@ function openMoreProducts() {
 }
 
 function confirmEndSession() {
-    const productTotal = session.billItems.reduce((total, item) => total + item.price * item.qty, 0);
+    const productTotal = grandProductTotal();
     const tableCharge = getElapsedMs() / 3600000 * session.hourlyRate;
     const grandTotal = productTotal + tableCharge;
-
-    if (!confirm(`End this session?\nTable charge: Rs. ${tableCharge.toFixed(2)}\nProducts: Rs. ${productTotal.toFixed(2)}\nTotal: Rs. ${grandTotal.toFixed(2)}`)) return;
-
+    let breakdown = session.players.map(p => "  " + p.name + ": Rs. " + playerSubtotal(p).toFixed(2)).join("\n");
+    if (!confirm(`End this session?\nTable charge: Rs. ${tableCharge.toFixed(2)}\nProducts by player:\n${breakdown}\nProducts total: Rs. ${productTotal.toFixed(2)}\nGrand total: Rs. ${grandTotal.toFixed(2)}`)) return;
     clearInterval(timerInterval);
     document.getElementById("btnPause").disabled = true;
     document.querySelector(".btn-end").disabled = true;

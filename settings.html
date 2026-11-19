@@ -82,8 +82,9 @@ checkAuth();
     <section class="section-card" aria-labelledby="pricingTitle">
         <h2 class="section-title" id="pricingTitle"><i class="fas fa-tags"></i>Pricing &amp; Billing</h2>
         <div class="row mb-3">
-            <div class="col-md-6 mb-3 mb-md-0"><label class="form-label-sm" for="hourlyRate">Hourly Rate</label><input type="number" id="hourlyRate" class="form-control" value="800" min="0" step="0.01"></div>
-            <div class="col-md-6"><label class="form-label-sm" for="currency">Currency</label><select id="currency" class="form-select"><option value="LKR">LKR — Rs.</option><option value="USD">USD — $</option><option value="EUR">EUR — €</option></select></div>
+            <div class="col-md-4 mb-3 mb-md-0"><label class="form-label-sm" for="snookerRate">Snooker Rate (per hour)</label><input type="number" id="snookerRate" class="form-control" value="1000" min="0" step="0.01"></div>
+            <div class="col-md-4 mb-3 mb-md-0"><label class="form-label-sm" for="poolRate">Pool Rate (per hour)</label><input type="number" id="poolRate" class="form-control" value="800" min="0" step="0.01"></div>
+            <div class="col-md-4"><label class="form-label-sm" for="currency">Currency</label><select id="currency" class="form-select"><option value="LKR">LKR — Rs.</option><option value="USD">USD — $</option><option value="EUR">EUR — €</option></select></div>
         </div>
         <div class="row mb-3">
             <div class="col-md-6 mb-3 mb-md-0"><label class="form-label-sm" for="defaultDiscount">Default Discount (%)</label><input type="number" id="defaultDiscount" class="form-control" value="0" min="0" max="100" step="0.01"></div>
@@ -154,7 +155,7 @@ checkAuth();
 <script>
 (() => {
     const STORAGE_KEY = 'cueclubSettings';
-    const fields = ['bizName', 'bizAddress', 'bizPhone', 'bizEmail', 'hourlyRate', 'currency', 'defaultDiscount', 'taxRate', 'taxInclusive', 'quickSellOnSession', 'autoBackup', 'autoArchive'];
+    const fields = ['bizName', 'bizAddress', 'bizPhone', 'bizEmail', 'snookerRate','poolRate', 'currency', 'defaultDiscount', 'taxRate', 'taxInclusive', 'quickSellOnSession', 'autoBackup', 'autoArchive'];
     const permissionFields = ['permSell', 'permView', 'permCustomer', 'permInventory', 'permExpenses'];
     let settings = {};
     let logoData = '';
@@ -206,6 +207,10 @@ checkAuth();
             logoData = typeof saved.logo === 'string' ? saved.logo : '';
             renderLogo();
             staff = Array.isArray(saved.staff) ? saved.staff.filter(person => person && typeof person === 'object') : [];
+            if (saved.hourlyRate !== undefined && saved.snookerRate === undefined) {
+                document.getElementById('snookerRate').value = saved.hourlyRate;
+                document.getElementById('poolRate').value = saved.hourlyRate;
+            }
         } catch (error) {
             showNotice('Saved settings could not be read. Defaults are shown.', 'warning');
         }
