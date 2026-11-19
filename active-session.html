@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Active Session — CueClub Manager</title>
+    <title>Active Sessions — CueClub Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,476 +14,192 @@
             --success: #28a745;
             --danger: #dc3545;
             --warning: #ffc107;
-            --light: #f8f9fa;
         }
-        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 90px; }
-        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index: 100; }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index:100; }
         .back-link { color: white; text-decoration: none; margin-right: 12px; }
-        .timer-display { font-size: 2.8rem; font-weight: 700; letter-spacing: 2px; color: var(--primary); }
-        .timer-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-        .player-item { background: white; border-radius: 10px; padding: 12px 15px; margin-bottom: 8px; border-left: 4px solid var(--primary); }
-        .sale-item { background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .quick-btn { border-radius: 8px; padding: 10px 8px; border: none; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.06); transition: all 0.15s; font-size: 0.9rem; }
-        .quick-btn:active { transform: scale(0.97); background: var(--accent); }
-        .btn-pause { background: var(--warning); color: #212529; }
-        .btn-end { background: var(--danger); color: white; }
-        .btn-add-player { border: 2px dashed var(--primary); background: transparent; color: var(--primary); border-radius: 8px; padding: 10px; width: 100%; }
-        .btn-add-player:hover { background: var(--primary); color: white; }
-        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -3px 12px rgba(0,0,0,0.1); padding: 12px 15px; z-index: 100; }
-        .badge-rate { background: var(--accent); color: var(--primary); font-weight: 600; border-radius: 20px; padding: 4px 12px; font-size: 14px; }
-        .section-title { font-size: 1rem; font-weight: 600; color: #444; margin: 20px 0 10px; }
-        .text-accent { color: var(--accent); }
-        .modal-backdrop { background: rgba(0,0,0,0.5); }
+        .back-link:hover { color: var(--accent); }
+        .session-card { background: white; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 18px; border-top: 4px solid var(--primary); }
+        .session-card.paused { border-top-color: var(--warning); opacity: .92; }
+        .session-head { padding: 14px 18px; background: linear-gradient(135deg, #f8f9fa, #eef1f5); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+        .timer-display { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .paused .timer-display { color: var(--warning); }
+        .badge-type-snooker { background: var(--primary); color:#fff; }
+        .badge-type-pool { background: var(--secondary); color:#fff; }
+        .badge-rate { background: var(--accent); color: var(--primary); font-weight: 600; }
+        .player-chip { display:inline-block; background: #eef2f7; color: var(--primary); border-radius: 20px; padding: 4px 12px; font-size: .85rem; margin: 2px 4px 2px 0; font-weight:500; }
+        .player-chip i { color: var(--accent); }
+        .charge { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+        .btn-end { background: var(--danger); color:#fff; }
+        .btn-pause { background: var(--warning); color:#212529; }
+        .btn-resume { background: var(--success); color:#fff; }
+        .empty-state { text-align:center; padding: 60px 20px; color:#888; }
+        .empty-state i { font-size: 3.5rem; color:#ccc; margin-bottom: 16px; display:block; }
+        .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--success); margin-right:6px; animation: pulse 1.5s infinite; }
+        .paused .status-dot { background: var(--warning); animation: none; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
-  if (!isLoggedIn) {
-    window.location.replace("login.html");
-  }
+  if (!isLoggedIn) { window.location.replace("login.html"); }
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
         <a href="dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i></a>
         <div>
-            <h5 class="mb-0" id="tableName">Table —</h5>
-            <small id="tableTypeRate" class="opacity-75">—</small>
+            <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Active Sessions</h5>
+            <small class="opacity-75" id="summaryLine">—</small>
         </div>
     </div>
-    <span class="badge-rate" id="hourlyRate">Rs. 0/hr</span>
+    <a href="start-session.html" class="btn btn-sm btn-light fw-bold"><i class="fas fa-plus me-1"></i> New Session</a>
 </div>
 
-<div class="container px-3 mt-3">
-
-    <!-- ⏱️ LIVE TIMER -->
-    <div class="timer-card p-4 text-center mb-4">
-        <div id="timerDisplay" class="timer-display">00:00:00</div>
-        <div class="text-muted mt-1">
-            Started: <span id="startTimeDisplay">—</span>
-            <span id="pauseStatus" class="text-warning ms-2 d-none"><i class="fas fa-pause-circle"></i> PAUSED</span>
-        </div>
-        <div class="mt-3">
-            <h5>Est. Table Charge: <span class="text-accent" id="estCharge">Rs. 0.00</span></h5>
-        </div>
-    </div>
-
-    <!-- 👥 PLAYERS -->
-    <h6 class="section-title mb-2"><i class="fas fa-users me-2"></i> Players at Table</h6>
-    <div id="playerList">
-        <!-- Players loaded here -->
-    </div>
-    <button class="btn-add-player mt-2 mb-4" onclick="openAddPlayerModal()">
-        <i class="fas fa-user-plus me-2"></i> Add Player
-    </button>
-
-    <!-- 🥤 QUICK SALES -->
-    <h6 class="section-title mb-2"><i class="fas fa-shopping-basket me-2"></i> Quick Add to Bill</h6>
-    <small class="text-muted d-block mb-2">Tap a product, then select which player to charge.</small>
-    <div class="row g-2 mb-3">
-        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P01','Coca-Cola',250)">🥤 Coke<br><small>Rs.250</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P03','Water Bottle',150)">💧 Water<br><small>Rs.150</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P04','Hot Coffee',300)">☕ Coffee<br><small>Rs.300</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P05','Cue Chalk',100)">🧱 Chalk<br><small>Rs.100</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100" onclick="pickPlayerForProduct('P02','Pepsi',250)">🥤 Pepsi<br><small>Rs.250</small></button></div>
-        <div class="col-4"><button class="quick-btn w-100 btn-outline-primary" onclick="openMoreProducts()">➕ More</button></div>
-    </div>
-
-    <!-- 📝 CURRENT BILL ITEMS -->
-    <h6 class="section-title mb-2"><i class="fas fa-receipt me-2"></i> Current Bill</h6>
-    <div id="billItems" class="mb-4">
-        <p class="text-muted small text-center py-2">No items added yet</p>
-    </div>
-    <div class="bg-white rounded p-3 mb-4">
-        <div class="d-flex justify-content-between fw-bold">
-            <span>Product Total</span>
-            <span id="productTotal">Rs. 0.00</span>
-        </div>
-    </div>
-
-</div>
-
-<!-- BOTTOM CONTROLS -->
-<div class="bottom-bar d-flex gap-2">
-    <button class="btn btn-pause flex-grow-1" id="btnPause" onclick="togglePause()">
-        <i class="fas fa-pause me-1"></i> PAUSE
-    </button>
-    <button class="btn btn-end flex-grow-1" onclick="confirmEndSession()">
-        <i class="fas fa-stop-circle me-1"></i> END SESSION
-    </button>
-</div>
-
-<!-- ADD PLAYER MODAL -->
-<div class="modal fade" id="addPlayerModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Player</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="closeAddPlayerModal()"></button>
-            </div>
-            <div class="modal-body">
-                <label class="form-label">Player Name / Mobile</label>
-                <input type="text" id="newPlayerName" class="form-control" placeholder="Enter name">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeAddPlayerModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmAddPlayer()">Add Player</button>
-            </div>
-        </div>
+<div class="container mt-4">
+    <div id="sessionsGrid"></div>
+    <div id="emptyState" class="empty-state" style="display:none">
+        <i class="fas fa-table-tennis-paddle-ball"></i>
+        <h5>No active sessions right now</h5>
+        <p class="text-muted">All tables are free. Start a new session to begin timing.</p>
+        <a href="start-session.html" class="btn btn-primary mt-2" style="background:var(--primary);border:none"><i class="fas fa-play me-2"></i>Start a Session</a>
     </div>
 </div>
 
-<!-- PICK PLAYER MODAL — charge an item to a specific player -->
-<div class="modal fade" id="pickPlayerModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Charge item to which player?</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="pickerPlayerList"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            </div>
-        </div>
-    </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app-settings.js"></script>
 <script>
-// ==========================================
-// CONFIG
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
+const BILLS_KEY = "cueclubBills";
+let sessions = [];
 
-// Session Data — in real app, load from Google Sheets using ?sessionId=...
-let session = {
-    id: "SES-SAMPLE001",
-    tableName: "Table 02",
-    tableType: "Snooker",
-    hourlyRate: 1000,
-    startTime: new Date(new Date().getTime() - 5142000), // 1h25m ago for demo
-    isPaused: false,
-    pausedTime: 0,
-    totalPausedDuration: 0,
-    players: [
-        { id:1, name:"Player 1", joinTime: new Date(new Date().getTime() - 5142000), items: [] },
-        { id:2, name:"Player 2", joinTime: new Date(new Date().getTime() - 5142000), items: [] }
-    ],
-    billItems: []
-};
+function loadSessions(){ try { sessions = JSON.parse(localStorage.getItem(ACTIVE_SESSIONS_KEY) || "[]") || []; } catch(e){ sessions = []; } }
+function saveSessions(){ localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions)); }
+function money(n){ return "Rs. " + Number(n || 0).toFixed(2); }
+function curSymbol(){ return (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) || "Rs. "; }
 
-session.hourlyRate = APP_SETTINGS.rateForType(session.tableType);
-let timerInterval;
-let addPlayerModal;
+function elapsedMs(s){
+    const end = s.isPaused ? new Date(s.pausedTime).getTime() : Date.now();
+    return Math.max(0, end - new Date(s.startTime).getTime() - (s.totalPausedDuration || 0));
+}
+function fmtDuration(ms){
+    const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000), s = Math.floor((ms%60000)/1000);
+    return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+}
+function tableCharge(s){ return (elapsedMs(s)/3600000) * Number(s.hourlyRate || 0); }
 
-// ==========================================
-// INIT
-// ==========================================
-window.onload = function() {
-    addPlayerModal = new bootstrap.Modal(document.getElementById('addPlayerModal'));
-    pickPlayerModal = new bootstrap.Modal(document.getElementById('pickPlayerModal'));
-    renderSessionHeader();
-    renderPlayers();
-    renderBillItems();
-    startTimer();
-};
+function render(){
+    loadSessions();
+    const grid = document.getElementById("sessionsGrid");
+    const empty = document.getElementById("emptyState");
+    document.getElementById("summaryLine").textContent =
+        sessions.length + " active table" + (sessions.length===1?"":"s") + " · running timers update live";
 
-function renderSessionHeader() {
-    document.getElementById("tableName").textContent = session.tableName;
-    document.getElementById("tableTypeRate").textContent = session.tableType;
-    document.getElementById("hourlyRate").textContent = `Rs. ${session.hourlyRate}/hr`;
-    document.getElementById("startTimeDisplay").textContent = formatTime(session.startTime);
+    if (sessions.length === 0){ grid.innerHTML = ""; empty.style.display = "block"; return; }
+    empty.style.display = "none";
+
+    grid.innerHTML = sessions.map(function(s){
+        const typeBadge = (String(s.tableType||"").toLowerCase().indexOf("pool") !== -1) ? "badge-type-pool" : "badge-type-snooker";
+        const playersHtml = (s.players || []).map(function(p){
+            return '<span class="player-chip"><i class="fas fa-user me-1"></i>' + escapeHtml(p.name) + '</span>';
+        }).join("") || '<span class="text-muted small">No players</span>';
+        return '<div class="session-card ' + (s.isPaused ? "paused" : "") + '" data-id="' + s.id + '">' +
+            '<div class="session-head">' +
+                '<div><h5 class="mb-1"><span class="status-dot"></span>' + escapeHtml(s.tableName || "Table") +
+                ' <span class="badge ' + typeBadge + ' ms-1">' + escapeHtml(s.tableType || "") + '</span></h5>' +
+                '<small class="text-muted">Started ' + new Date(s.startTime).toLocaleString() + (s.openedBy ? ' · by ' + escapeHtml(s.openedBy) : "") + '</small></div>' +
+                '<span class="badge badge-rate">' + curSymbol() + Number(s.hourlyRate||0).toFixed(0) + '/hr</span>' +
+            '</div>' +
+            '<div class="p-3">' +
+                '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">' +
+                    '<div class="timer-display" data-timer="' + s.id + '">00:00:00</div>' +
+                    '<div class="text-end"><div class="text-muted small">Est. table charge</div><div class="charge" data-charge="' + s.id + '">Rs. 0.00</div></div>' +
+                '</div>' +
+                '<div class="mb-3"><small class="text-muted d-block mb-1">Players (' + (s.players||[]).length + ')</small>' + playersHtml + '</div>' +
+                '<div class="d-flex gap-2">' +
+                    (s.isPaused
+                        ? '<button class="btn btn-resume flex-grow-1" onclick="togglePause(\'' + s.id + '\')"><i class="fas fa-play me-1"></i>Resume</button>'
+                        : '<button class="btn btn-pause flex-grow-1" onclick="togglePause(\'' + s.id + '\')"><i class="fas fa-pause me-1"></i>Pause</button>') +
+                    '<button class="btn btn-end flex-grow-1" onclick="endSession(\'' + s.id + '\')"><i class="fas fa-stop-circle me-1"></i>End &amp; Bill</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }).join("");
+    tick();
 }
 
-// ==========================================
-// TIMER
-// ==========================================
-function startTimer() {
-    timerInterval = setInterval(updateTimerDisplay, 1000);
-    updateTimerDisplay();
+function tick(){
+    sessions.forEach(function(s){
+        const tEl = document.querySelector('[data-timer="' + s.id + '"]');
+        const cEl = document.querySelector('[data-charge="' + s.id + '"]');
+        if (tEl) tEl.textContent = fmtDuration(elapsedMs(s));
+        if (cEl) cEl.textContent = money(tableCharge(s));
+    });
 }
 
-function getElapsedMs() {
-    const endTime = session.isPaused ? session.pausedTime : Date.now();
-    return Math.max(0, endTime - new Date(session.startTime).getTime() - session.totalPausedDuration);
-}
-
-function updateTimerDisplay() {
-    const elapsedMs = getElapsedMs();
-    
-    const hours = Math.floor(elapsedMs / 3600000);
-    const minutes = Math.floor((elapsedMs % 3600000) / 60000);
-    const seconds = Math.floor((elapsedMs % 60000) / 1000);
-    
-    document.getElementById("timerDisplay").textContent = 
-        String(hours).padStart(2,'0') + ":" + String(minutes).padStart(2,'0') + ":" + String(seconds).padStart(2,'0');
-    
-    // Calculate estimated charge
-    const hoursDecimal = elapsedMs / 3600000;
-    const charge = hoursDecimal * session.hourlyRate;
-    document.getElementById("estCharge").textContent = "Rs. " + charge.toFixed(2);
-}
-
-function togglePause() {
-    const btn = document.getElementById("btnPause");
-    const pauseStatus = document.getElementById("pauseStatus");
-    
-    if (!session.isPaused) {
-        // Freeze the display and charge at the moment the session is paused.
-        updateTimerDisplay();
-        session.pausedTime = Date.now();
-        session.isPaused = true;
-        btn.innerHTML = '<i class="fas fa-play me-1"></i> RESUME';
-        btn.classList.remove("btn-pause");
-        btn.classList.add("btn-success");
-        pauseStatus.classList.remove("d-none");
+function togglePause(id){
+    loadSessions();
+    const s = sessions.find(function(x){ return x.id === id; });
+    if (!s) return;
+    if (s.isPaused){
+        s.isPaused = false;
+        s.totalPausedDuration = (s.totalPausedDuration || 0) + (Date.now() - new Date(s.pausedTime).getTime());
+        s.pausedTime = null;
     } else {
-        // Resume
-        session.isPaused = false;
-        session.totalPausedDuration += new Date().getTime() - session.pausedTime;
-        btn.innerHTML = '<i class="fas fa-pause me-1"></i> PAUSE';
-        btn.classList.remove("btn-success");
-        btn.classList.add("btn-pause");
-        pauseStatus.classList.add("d-none");
-        updateTimerDisplay();
+        s.isPaused = true;
+        s.pausedTime = new Date().toISOString();
     }
+    saveSessions(); render();
 }
 
-// ==========================================
-// PLAYERS
-// ==========================================
-function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[character]);
+function endSession(id){
+    loadSessions();
+    const s = sessions.find(function(x){ return x.id === id; });
+    if (!s) return;
+    const charge = tableCharge(s);
+    const mins = Math.round(elapsedMs(s)/60000);
+    if (!confirm("End " + s.tableName + "?\nDuration: " + fmtDuration(elapsedMs(s)) + " (" + mins + " min)\nTable charge: " + money(charge))) return;
+
+    // Save a bill record so it appears in Bills History
+    let bills = [];
+    try { bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || []; } catch(e){ bills = []; }
+    bills.unshift({
+        id: "BILL-" + Date.now().toString(36).toUpperCase(),
+        sessionId: s.id,
+        table: s.tableName,
+        tableType: s.tableType,
+        hourlyRate: s.hourlyRate,
+        players: (s.players || []).map(function(p){ return p.name; }),
+        startTime: s.startTime,
+        endTime: new Date().toISOString(),
+        durationMin: mins,
+        tableCharge: Math.round(charge*100)/100,
+        items: s.billItems || [],
+        total: Math.round(charge*100)/100,
+        openedBy: s.openedBy || "Staff",
+        status: "Paid"
+    });
+    localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
+
+    sessions = sessions.filter(function(x){ return x.id !== id; });
+    saveSessions();
+    render();
+    alert("✅ Session ended. " + s.tableName + " is now free.\nBill saved: " + money(charge));
 }
 
-function renderPlayers() {
-    const list = document.getElementById("playerList");
-    list.innerHTML = "";
-    session.players.forEach((p, idx) => {
-        const sub = playerSubtotal(p);
-        const count = (p.items || []).length;
-        list.innerHTML += `
-            <div class="player-item d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-0">🧑 ${escapeHtml(p.name)}</h6>
-                    <small class="text-muted">Joined: ${formatTime(p.joinTime)} · ${count} item(s) · <span class="text-accent fw-bold">Rs. ${sub.toFixed(2)}</span></small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger" onclick="removePlayer(${idx})" title="Remove player (and their items)">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </div>
-        `;
+function escapeHtml(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
+        return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
 }
 
-function openAddPlayerModal() {
-    document.getElementById("newPlayerName").value = "";
-    addPlayerModal.show();
-}
-
-function closeAddPlayerModal() {
-    addPlayerModal.hide();
-}
-
-function confirmAddPlayer() {
-    const name = document.getElementById("newPlayerName").value.trim() || "Guest";
-    const newPlayer = {
-        id: Date.now(),
-        name: name,
-        joinTime: new Date(),
-        items: []
-    };
-    session.players.push(newPlayer);
-    renderPlayers();
-    addPlayerModal.hide();
-    
-    // ✅ Save to Google Sheets (uncomment when ready)
-    /*
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "addPlayer",
-            sessionId: session.id,
-            playerName: name,
-            joinTime: new Date()
-        })
-    });
-    */
-}
-
-function removePlayer(index) {
-    if (session.players.length <= 1) {
-        alert("⚠️ Cannot remove the last player");
-        return;
-    }
-    const player = session.players[index];
-    if (!confirm(`Remove ${player.name} from session?`)) return;
-    
-    const leaveTime = new Date();
-    session.players.splice(index, 1);
-    renderPlayers();
-    
-    // ✅ Save to Google Sheets (uncomment when ready)
-    /*
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "removePlayer",
-            sessionId: session.id,
-            playerName: player.name,
-            leaveTime: leaveTime
-        })
-    });
-    */
-}
-
-// ==========================================
-// PRODUCTS & SALES
-// ==========================================
-// ---- per-player bill items ----
-let pendingProduct = null;
-let pickPlayerModal;
-
-function playerSubtotal(p) {
-    if (!p.items) p.items = [];
-    return p.items.reduce((t, it) => t + it.price * it.qty, 0);
-}
-function grandProductTotal() {
-    return session.players.reduce((t, p) => t + playerSubtotal(p), 0);
-}
-function pickPlayerForProduct(productId, name, price) {
-    if (session.players.length === 0) {
-        alert("⚠️ Add at least one player first.");
-        return;
-    }
-    if (session.players.length === 1) {
-        addProductToPlayer(0, productId, name, price);
-        return;
-    }
-    pendingProduct = { id: productId, name: name, price: price };
-    renderPickerPlayers();
-    pickPlayerModal.show();
-}
-function renderPickerPlayers() {
-    const box = document.getElementById("pickerPlayerList");
-    box.innerHTML = "";
-    session.players.forEach((p, idx) => {
-        const sub = playerSubtotal(p);
-        box.innerHTML += `<button type="button" class="btn btn-outline-primary w-100 mb-2 text-start" onclick="confirmPickPlayer(${idx})">
-            <strong>${escapeHtml(p.name)}</strong>
-            <small class="text-muted d-block">Current bill: Rs. ${sub.toFixed(2)}</small>
-        </button>`;
-    });
-}
-function confirmPickPlayer(playerIdx) {
-    if (pendingProduct) {
-        addProductToPlayer(playerIdx, pendingProduct.id, pendingProduct.name, pendingProduct.price);
-    }
-    pendingProduct = null;
-    pickPlayerModal.hide();
-}
-function addProductToPlayer(playerIdx, productId, name, price) {
-    const p = session.players[playerIdx];
-    if (!p.items) p.items = [];
-    const existing = p.items.find(i => i.name === name);
-    if (existing) {
-        existing.qty++;
-    } else {
-        p.items.push({ id: productId, name: name, price: price, qty: 1 });
-    }
-    renderPlayers();
-    renderBillItems();
-    // ✅ Save to Google Sheets (uncomment when ready) — include playerName
-    /*
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "addSale",
-            sessionId: session.id,
-            playerName: p.name,
-            productId: productId,
-            qty: 1,
-            unitPrice: price,
-            recordedBy: "Staff"
-        })
-    });
-    */
-}
-function removePlayerItem(playerIdx, itemIdx) {
-    const p = session.players[playerIdx];
-    if (p && p.items) p.items.splice(itemIdx, 1);
-    renderPlayers();
-    renderBillItems();
-}
-function renderBillItems() {
-    const container = document.getElementById("billItems");
-    const anyItems = session.players.some(p => p.items && p.items.length > 0);
-    if (!anyItems) {
-        container.innerHTML = '<p class="text-muted small text-center py-2">No items added yet</p>';
-    } else {
-        container.innerHTML = "";
-        session.players.forEach((p, pIdx) => {
-            if (!p.items || p.items.length === 0) return;
-            const sub = playerSubtotal(p);
-            let html = `<div class="player-item" style="border-left-color:var(--accent);">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">🧑 ${escapeHtml(p.name)}</h6>
-                    <strong class="text-accent">Rs. ${sub.toFixed(2)}</strong>
-                </div>`;
-            p.items.forEach((item, iIdx) => {
-                html += `<div class="sale-item" style="background:#f8f9fa;">
-                    <div>
-                        <strong>${escapeHtml(item.name)}</strong>
-                        <small class="text-muted d-block">Rs. ${item.price} × ${item.qty}</small>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <strong>Rs. ${(item.price * item.qty).toFixed(2)}</strong>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removePlayerItem(${pIdx},${iIdx})" aria-label="Remove ${escapeHtml(item.name)}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>`;
-            });
-            html += `</div>`;
-            container.innerHTML += html;
-        });
-    }
-    document.getElementById("productTotal").textContent = `Rs. ${grandProductTotal().toFixed(2)}`;
-}
-function formatTime(date) {
-    return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function openMoreProducts() {
-    alert("More products are not configured yet.");
-}
-
-function confirmEndSession() {
-    const productTotal = grandProductTotal();
-    const tableCharge = getElapsedMs() / 3600000 * session.hourlyRate;
-    const grandTotal = productTotal + tableCharge;
-    let breakdown = session.players.map(p => "  " + p.name + ": Rs. " + playerSubtotal(p).toFixed(2)).join("\n");
-    if (!confirm(`End this session?\nTable charge: Rs. ${tableCharge.toFixed(2)}\nProducts by player:\n${breakdown}\nProducts total: Rs. ${productTotal.toFixed(2)}\nGrand total: Rs. ${grandTotal.toFixed(2)}`)) return;
-    clearInterval(timerInterval);
-    document.getElementById("btnPause").disabled = true;
-    document.querySelector(".btn-end").disabled = true;
-    alert(`Session ended. Total due: Rs. ${grandTotal.toFixed(2)}`);
-}
+render();
+setInterval(tick, 1000);
 </script>
 <script src="sidebar.js"></script>
 </body>
