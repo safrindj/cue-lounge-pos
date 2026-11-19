@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — CueClub Manager</title>
+    <script>
+        if (sessionStorage.getItem("cueclubLoggedIn") !== "true") {
+            window.location.replace("login.html");
+        }
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42;
+            --secondary: #2d4263;
+            --accent: #e8b832;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+        }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 30px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 16px 20px; }
+        .stat-card { background: white; border-radius: 12px; text-align: center; padding: 14px 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .stat-label { font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+        .income-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .income-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
+        .income-total { font-size: 1.2rem; font-weight: 700; color: var(--primary); border-top: 1px dashed #ddd; padding-top: 8px; margin-top: 4px; }
+        .table-card { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer; }
+        .table-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .status-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .dot-available { background: var(--success); }
+        .dot-occupied { background: var(--danger); }
+        .dot-reserved { background: var(--warning); }
+        .dot-maintenance { background: #444; }
+        .table-type { font-size: 0.75rem; text-transform: uppercase; color: #888; background: #f0f0f0; display: inline-block; padding: 2px 8px; border-radius: 10px; margin-top: 4px; }
+        .session-time { font-family: monospace; font-size: 0.85rem; color: #555; margin-top: 6px; }
+        .quick-btn { border-radius: 10px; padding: 14px 10px; text-align: center; border: none; transition: all 0.2s; }
+        .quick-btn:hover { transform: scale(1.03); }
+        .section-title { font-size: 1rem; font-weight: 600; color: #333; margin: 24px 0 12px; }
+        .discount-line { color: var(--success); }
+        .expense-line { color: var(--danger); }
+    </style>
+</head>
+<body>
+<!-- ===================================== -->
+<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  if (!isLoggedIn) {
+    window.location.replace("login.html");
+  }
+}
+checkAuth();
+</script>
+<!-- ===================================== -->
+
+<!-- Header -->
+<div class="header-bar">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-pool-8-ball me-2"></i> CueClub Manager</h4>
+            <!-- 🚪 LOGOUT BUTTON -->
+<button class="btn btn-sm btn-outline-danger" onclick="logout()">
+  <i class="fas fa-sign-out-alt"></i> Logout
+</button>
+
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-light" onclick="refreshData()" title="Refresh">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-light" onclick="logout()" title="Sign out">
+                <i class="fas fa-sign-out-alt me-1"></i> Sign Out
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="container px-3 mt-4">
+
+    <!-- 📊 Quick Stats Row 1 -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTables">6</div>
+                <div class="stat-label">Total Tables</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value text-success" id="availableTables">2</div>
+                <div class="stat-label">Available</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value text-danger" id="occupiedTables">4</div>
+                <div class="stat-label">Occupied</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value text-primary" id="activeSessions">4</div>
+                <div class="stat-label">Active Sessions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💰 Today's Income Summary -->
+    <h5 class="section-title mb-2"><i class="fas fa-coins me-2"></i> Today's Overview</h5>
+    <div class="income-card mb-4">
+        <div class="income-row">
+            <span>Table Charges</span>
+            <span id="todayTableIncome">Rs. 14,200.00</span>
+        </div>
+        <div class="income-row">
+            <span>Product Sales</span>
+            <span id="todayProductSales">Rs. 4,250.00</span>
+        </div>
+        <div class="income-row discount-line">
+            <span>Discounts Given</span>
+            <span>- Rs. 380.00</span>
+        </div>
+        <div class="income-row expense-line">
+            <span>Expenses</span>
+            <span>- Rs. 1,200.00</span>
+        </div>
+        <div class="income-row income-total">
+            <span>💰 Net Income Today</span>
+            <span id="todayTotal">Rs. 16,870.00</span>
+        </div>
+    </div>
+
+    <!-- 🎱 Table Status Grid -->
+    <h5 class="section-title mb-2"><i class="fas fa-border-all me-2"></i> Table Status</h5>
+    <div class="row g-2 mb-4" id="tablesGrid">
+        <!-- Tables rendered by JavaScript -->
+    </div>
+
+    <!-- ⚡ Quick Actions -->
+    <h5 class="section-title mb-2"><i class="fas fa-bolt me-2"></i> Quick Actions</h5>
+    <div class="row g-2 mb-5">
+        <div class="col-4">
+            <a href="start-session.html" class="quick-btn bg-success text-white d-block">
+                <i class="fas fa-play-circle fa-lg d-block mb-1"></i>
+                Start Session
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="#" class="quick-btn bg-primary text-white d-block" onclick="alert('Coming Soon!')">
+                <i class="fas fa-file-invoice fa-lg d-block mb-1"></i>
+                Today's Bills
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="#" class="quick-btn bg-secondary text-white d-block" onclick="alert('Coming Soon!')">
+                <i class="fas fa-users fa-lg d-block mb-1"></i>
+                Customers
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ==========================================
+// CONFIG — Paste your Web App URL when ready
+// ==========================================
+const GOOGLE_SCRIPT_URL = "";
+
+// Dashboard Data — sample data
+let dashboard = {
+    stats: {
+        totalTables: 6,
+        available: 2,
+        occupied: 4,
+        activeSessions: 4,
+        tableIncome: 14200,
+        productSales: 4250,
+        discounts: 380,
+        expenses: 1200,
+        netIncome: 16870
+    },
+    tables: [
+        { id: "T01", name: "Table 01", type: "Snooker", status: "available", sessionTime: "" },
+        { id: "T02", name: "Table 02", type: "Snooker", status: "occupied", sessionTime: "01:15:20" },
+        { id: "T03", name: "Table 03", type: "Snooker", status: "occupied", sessionTime: "00:42:10" },
+        { id: "T04", name: "Table 04", type: "Snooker", status: "reserved", sessionTime: "" },
+        { id: "T05", name: "Table 05", type: "Pool", status: "occupied", sessionTime: "02:05:30" },
+        { id: "T06", name: "Table 06", type: "Pool", status: "available", sessionTime: "" }
+    ]
+};
+
+// ==========================================
+// INIT
+// ==========================================
+window.onload = function() {
+    setTodayDate();
+    renderTables();
+    loadDashboardData();
+};
+
+function setTodayDate() {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById("todayDate").textContent = new Date().toLocaleDateString('en-GB', options);
+}
+
+function loadDashboardData() {
+    // ✅ When Google Script is deployed, uncomment this block:
+    /*
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL + "?action=getDashboard")
+            .then(res => res.json())
+            .then(data => {
+                dashboard.stats.available = data.availableTables;
+                dashboard.stats.occupied = data.occupiedTables;
+                dashboard.stats.activeSessions = data.activeSessions;
+                dashboard.stats.tableIncome = data.tableIncome;
+                dashboard.stats.productSales = data.productIncome;
+                dashboard.stats.discounts = data.totalDiscounts;
+                dashboard.stats.expenses = data.expenses;
+                updateStatsDisplay();
+            });
+    }
+    */
+    updateStatsDisplay();
+}
+
+function updateStatsDisplay() {
+    document.getElementById("totalTables").textContent = dashboard.stats.totalTables;
+    document.getElementById("availableTables").textContent = dashboard.stats.available;
+    document.getElementById("occupiedTables").textContent = dashboard.stats.occupied;
+    document.getElementById("activeSessions").textContent = dashboard.stats.activeSessions;
+    
+    document.getElementById("todayTableIncome").textContent = formatCurrency(dashboard.stats.tableIncome);
+    document.getElementById("todayProductSales").textContent = formatCurrency(dashboard.stats.productSales);
+    
+    const net = dashboard.stats.tableIncome + dashboard.stats.productSales 
+                - dashboard.stats.discounts - dashboard.stats.expenses;
+    document.getElementById("todayTotal").textContent = formatCurrency(net);
+}
+
+function renderTables() {
+    const container = document.getElementById("tablesGrid");
+    container.innerHTML = "";
+    
+    dashboard.tables.forEach(table => {
+        const statusClass = getStatusClass(table.status);
+        const statusText = table.status.charAt(0).toUpperCase() + table.status.slice(1);
+        
+        container.innerHTML += `
+            <div class="col-6 col-sm-4">
+                <div class="table-card" onclick="openTableDetail('${table.id}')">
+                    <h6 class="mb-1">${table.name}</h6>
+                    <span class="table-type">${table.type}</span>
+                    <div class="mt-2">
+                        <span class="status-dot ${statusClass}"></span>
+                        <span class="small">${statusText}</span>
+                    </div>
+                    ${table.sessionTime 
+                        ? `<div class="session-time"><i class="fas fa-clock"></i> ${table.sessionTime}</div>` 
+                        : ''}
+                </div>
+            </div>
+        `;
+    });
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'available': return 'dot-available';
+        case 'occupied': return 'dot-occupied';
+        case 'reserved': return 'dot-reserved';
+        case 'maintenance': return 'dot-maintenance';
+        default: return '';
+    }
+}
+
+function openTableDetail(tableId) {
+    const table = dashboard.tables.find(t => t.id === tableId);
+    if (table.status === 'available' || table.status === 'reserved') {
+        window.location.href = 'start-session.html';
+    } else if (table.status === 'occupied') {
+        alert(`📋 ${table.name} — Session in progress\n\nClick OK to view active session`);
+        // window.location.href = 'active-session.html';
+    } else {
+        alert(`${table.name} — Currently unavailable (${table.status})`);
+    }
+}
+
+function refreshData() {
+    loadDashboardData();
+    renderTables();
+    alert("✅ Dashboard refreshed!");
+}
+
+function logout() {
+    sessionStorage.removeItem("cueclubLoggedIn");
+    window.location.replace("login.html");
+}
+
+function formatCurrency(amount) {
+    return "Rs. " + amount.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+</script>
+<!-- ===================================== -->
+<!-- 🚪 LOGOUT FUNCTION -->
+<script>
+function logout() {
+  if (confirm("Are you sure you want to logout?")) {
+    sessionStorage.removeItem("currentStaff");
+    window.location.href = "login.html";
+  }
+}
+</script>
+<!-- ===================================== -->
+
+</body>
+</html>

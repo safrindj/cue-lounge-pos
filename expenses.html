@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expenses — CueClub Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42;
+            --secondary: #2d4263;
+            --accent: #e8b832;
+            --success: #28a745;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+        }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index: 100; }
+        .back-link { color: white; text-decoration: none; margin-right: 12px; }
+        .summary-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .total-box { background: var(--primary); color: white; border-radius: 10px; padding: 12px; text-align: center; }
+        .expense-item { background: white; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .expense-category { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; background: #e9ecef; padding: 2px 8px; border-radius: 10px; color: #555; }
+        .expense-amount { font-weight: 600; color: var(--danger); font-size: 1.05rem; }
+        .btn-add { background: var(--success); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 500; width: 100%; }
+        .btn-add:hover { background: #218838; }
+        .btn-sm-action { border: none; background: none; font-size: 0.9rem; padding: 0 4px; }
+        .btn-edit { color: #666; }
+        .btn-delete { color: var(--danger); }
+        .progress-bar-custom { height: 10px; border-radius: 5px; background: #e9ecef; margin-top: 4px; }
+        .progress-fill { height: 100%; border-radius: 5px; background: var(--accent); }
+        .date-group { font-size: 0.85rem; font-weight: 600; color: #888; margin: 16px 0 6px; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #888; }
+    </style>
+</head>
+<body>
+<!-- ===================================== -->
+<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  if (!isLoggedIn) {
+    window.location.replace("login.html");
+  }
+}
+checkAuth();
+</script>
+<!-- ===================================== -->
+
+<!-- Header -->
+<div class="header-bar d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <a href="dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i></a>
+        <h5 class="mb-0"><i class="fas fa-money-check-alt me-2"></i> Expenses</h5>
+    </div>
+    <button class="btn btn-sm btn-light" onclick="openAddModal()">
+        <i class="fas fa-plus me-1"></i> Add
+    </button>
+</div>
+
+<div class="container px-3 mt-4">
+
+    <!-- Period Summary -->
+    <div class="row g-2 mb-4">
+        <div class="col-6">
+            <div class="total-box">
+                <div class="small opacity-75">This Week</div>
+                <div class="h5 mb-0" id="weekTotal">Rs. 0</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="total-box">
+                <div class="small opacity-75">This Month</div>
+                <div class="h5 mb-0" id="monthTotal">Rs. 18,900</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="summary-card mb-4">
+        <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i> Category Breakdown</h6>
+        <div id="categoryBreakdown">
+            <!-- Rendered by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Add Button -->
+    <button class="btn-add mb-4" onclick="openAddModal()">
+        <i class="fas fa-plus-circle me-2"></i> Add New Expense
+    </button>
+
+    <!-- Recent Transactions -->
+    <h6 class="mb-2"><i class="fas fa-list me-2"></i> Recent Transactions</h6>
+    <div id="transactionList">
+        <!-- Rendered by JavaScript -->
+    </div>
+
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal fade" id="expenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editExpenseId">
+                <div class="mb-3">
+                    <label class="form-label">Date</label>
+                    <input type="date" id="expDate" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description *</label>
+                    <input type="text" id="expDesc" class="form-control" placeholder="e.g. Electricity Bill">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Category *</label>
+                    <select id="expCategory" class="form-select">
+                        <option value="Rent">🏠 Rent</option>
+                        <option value="Utilities">💡 Utilities (Elec/Water/Internet)</option>
+                        <option value="Supplies">🧰 Supplies & Stock</option>
+                        <option value="Wages">👤 Wages & Staff</option>
+                        <option value="Maintenance">🔧 Maintenance</option>
+                        <option value="Marketing">📣 Marketing</option>
+                        <option value="Other">📝 Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Amount (Rs.) *</label>
+                    <input type="number" id="expAmount" class="form-control" placeholder="0.00" step="10">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Notes (Optional)</label>
+                    <textarea id="expNotes" class="form-control" rows="2" placeholder="Payment reference, etc."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveExpense()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Delete this expense entry?</p>
+                <strong id="deleteInfo"></strong>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ==========================================
+// CONFIG
+// ==========================================
+const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+
+// Categories with icons
+const categories = {
+    Rent: { icon: "🏠", color: "#4a6cf7" },
+    Utilities: { icon: "💡", color: "#f5a623" },
+    Supplies: { icon: "🧰", color: "#2ecc71" },
+    Wages: { icon: "👤", color: "#9b59b6" },
+    Maintenance: { icon: "🔧", color: "#e74c3c" },
+    Marketing: { icon: "📣", color: "#1abc9c" },
+    Other: { icon: "📝", color: "#95a5a6" }
+};
+
+// Sample Data
+let expenses = [
+    { id: "E001", date: new Date("2026-11-19"), desc: "Electricity Bill", category: "Utilities", amount: 850, notes: "" },
+    { id: "E002", date: new Date("2026-11-19"), desc: "Cleaning Items", category: "Supplies", amount: 350, notes: "" },
+    { id: "E003", date: new Date("2026-11-18"), desc: "Rent — November", category: "Rent", amount: 8000, notes: "" },
+    { id: "E004", date: new Date("2026-11-17"), desc: "Water Bill", category: "Utilities", amount: 420, notes: "" },
+    { id: "E005", date: new Date("2026-11-15"), desc: "Internet Bill", category: "Utilities", amount: 680, notes: "" },
+    { id: "E006", date: new Date("2026-11-12"), desc: "Cue Chalk Bulk Order", category: "Supplies", amount: 1200, notes: "" },
+    { id: "E007", date: new Date("2026-11-10"), desc: "Table Maintenance", category: "Maintenance", amount: 1500, notes: "Cloth replacement" },
+    { id: "E008", date: new Date("2026-11-01"), desc: "Part-time Staff Wages", category: "Wages", amount: 5000, notes: "" }
+];
+
+let expenseModal, deleteModal;
+let deleteTargetId = null;
+
+// ==========================================
+// INIT
+// ==========================================
+window.onload = function() {
+    expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    
+    document.getElementById("expDate").valueAsDate = new Date();
+    
+    renderCategoryBreakdown();
+    renderTransactions();
+};
+
+// ==========================================
+// CATEGORY BREAKDOWN
+// ==========================================
+function renderCategoryBreakdown() {
+    const container = document.getElementById("categoryBreakdown");
+    
+    // Calculate totals by category
+    const catTotals = {};
+    let grandTotal = 0;
+    
+    expenses.forEach(e => {
+        if (!catTotals[e.category]) catTotals[e.category] = 0;
+        catTotals[e.category] += e.amount;
+        grandTotal += e.amount;
+    });
+    
+    container.innerHTML = "";
+    
+    Object.keys(catTotals).forEach(cat => {
+        const amount = catTotals[cat];
+        const percent = grandTotal > 0 ? (amount / grandTotal) * 100 : 0;
+        const icon = categories[cat]?.icon || "📝";
+        
+        container.innerHTML += `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>${icon} ${cat}</span>
+                    <span class="fw-bold">Rs. ${amount.toLocaleString()}</span>
+                </div>
+                <div class="progress-bar-custom">
+                    <div class="progress-fill" style="width: ${percent}%; background: ${categories[cat]?.color || '#888'};"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    document.getElementById("monthTotal").textContent = "Rs. " + grandTotal.toLocaleString();
+}
+
+// ==========================================
+// TRANSACTION LIST
+// ==========================================
+function renderTransactions() {
+    const container = document.getElementById("transactionList");
+    
+    if (expenses.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-file-invoice-dollar fa-3x mb-3 text-muted"></i>
+                <p>No expenses recorded yet.<br>Click "Add New Expense" to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Group by date
+    const grouped = {};
+    [...expenses].sort((a, b) => b.date - a.date).forEach(e => {
+        const dateKey = formatDateShort(e.date);
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push(e);
+    });
+    
+    container.innerHTML = "";
+    
+    Object.keys(grouped).forEach(dateKey => {
+        container.innerHTML += `<div class="date-group">${dateKey}</div>`;
+        
+        grouped[dateKey].forEach(e => {
+            const icon = categories[e.category]?.icon || "📝";
+            container.innerHTML += `
+                <div class="expense-item">
+                    <div class="flex-grow-1">
+                        <div class="mb-1">
+                            <strong>${escapeHTML(e.desc)}</strong>
+                            <span class="expense-category ms-2">${icon} ${escapeHTML(e.category)}</span>
+                        </div>
+                        ${e.notes ? `<small class="text-muted">${escapeHTML(e.notes)}</small>` : ''}
+                    </div>
+                    <div class="text-end">
+                        <div class="expense-amount">Rs. ${e.amount.toLocaleString()}</div>
+                        <div>
+                            <button class="btn-sm-action btn-edit" data-action="edit" data-id="${escapeHTML(e.id)}" title="Edit" aria-label="Edit ${escapeHTML(e.desc)}">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn-sm-action btn-delete" data-action="delete" data-id="${escapeHTML(e.id)}" title="Delete" aria-label="Delete ${escapeHTML(e.desc)}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+// ==========================================
+// MODAL ACTIONS
+// ==========================================
+function openAddModal() {
+    document.getElementById("modalTitle").textContent = "Add Expense";
+    document.getElementById("editExpenseId").value = "";
+    document.getElementById("expDate").valueAsDate = new Date();
+    document.getElementById("expDesc").value = "";
+    document.getElementById("expCategory").value = "Other";
+    document.getElementById("expAmount").value = "";
+    document.getElementById("expNotes").value = "";
+    expenseModal.show();
+}
+
+function editExpense(id) {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense) return;
+
+    document.getElementById("modalTitle").textContent = "Edit Expense";
+    document.getElementById("editExpenseId").value = expense.id;
+    document.getElementById("expDate").value = toInputDate(expense.date);
+    document.getElementById("expDesc").value = expense.desc;
+    document.getElementById("expCategory").value = expense.category;
+    document.getElementById("expAmount").value = expense.amount;
+    document.getElementById("expNotes").value = expense.notes || "";
+    expenseModal.show();
+}
+
+function saveExpense() {
+    const dateValue = document.getElementById("expDate").value;
+    const desc = document.getElementById("expDesc").value.trim();
+    const category = document.getElementById("expCategory").value;
+    const amount = Number(document.getElementById("expAmount").value);
+    const notes = document.getElementById("expNotes").value.trim();
+
+    if (!dateValue || !desc || !Number.isFinite(amount) || amount <= 0) {
+        alert("Please enter a date, description, and an amount greater than zero.");
+        return;
+    }
+
+    const id = document.getElementById("editExpenseId").value;
+    const expense = { id: id || `E${Date.now()}`, date: parseInputDate(dateValue), desc, category, amount, notes };
+    const existingIndex = expenses.findIndex(item => item.id === id);
+    if (existingIndex >= 0) expenses[existingIndex] = expense;
+    else expenses.push(expense);
+
+    expenseModal.hide();
+    renderCategoryBreakdown();
+    renderTransactions();
+}
+
+function openDeleteModal(id, info) {
+    deleteTargetId = id;
+    document.getElementById("deleteInfo").textContent = info;
+    deleteModal.show();
+}
+
+function confirmDelete() {
+    if (deleteTargetId === null) return;
+    expenses = expenses.filter(item => item.id !== deleteTargetId);
+    deleteTargetId = null;
+    deleteModal.hide();
+    renderCategoryBreakdown();
+    renderTransactions();
+}
+
+function parseInputDate(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+}
+
+function toInputDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function formatDateShort(date) {
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>\"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+    })[character]);
+}
+
+function renderTotals() {
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const weekTotal = expenses.reduce((total, expense) =>
+        expense.date >= startOfWeek && expense.date <= now ? total + expense.amount : total, 0);
+    const monthTotal = expenses.reduce((total, expense) =>
+        expense.date.getFullYear() === now.getFullYear() && expense.date.getMonth() === now.getMonth()
+            ? total + expense.amount : total, 0);
+
+    document.getElementById("weekTotal").textContent = `Rs. ${weekTotal.toLocaleString()}`;
+    document.getElementById("monthTotal").textContent = `Rs. ${monthTotal.toLocaleString()}`;
+}
+
+// Use delegated actions so descriptions and IDs are never inserted into inline JavaScript.
+document.getElementById("transactionList").addEventListener("click", event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const expense = expenses.find(item => item.id === button.dataset.id);
+    if (!expense) return;
+
+    if (button.dataset.action === "edit") editExpense(expense.id);
+    if (button.dataset.action === "delete") {
+        openDeleteModal(expense.id, `${expense.desc} — Rs. ${expense.amount.toLocaleString()}`);
+    }
+});
+
+// Keep totals refreshed whenever the expense data changes.
+const originalRenderCategoryBreakdown = renderCategoryBreakdown;
+renderCategoryBreakdown = function() {
+    originalRenderCategoryBreakdown();
+    renderTotals();
+};
+
+</script>
+</body>
+</html>

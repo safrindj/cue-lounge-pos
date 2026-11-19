@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers — CueClub Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42;
+            --secondary: #2d4263;
+            --accent: #e8b832;
+            --success: #28a745;
+            --danger: #dc3545;
+            --bronze: #cd7f32;
+            --silver: #c0c0c0;
+            --gold: #ffd700;
+            --vip: #9c27b0;
+        }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index: 100; }
+        .back-link { color: white; text-decoration: none; margin-right: 12px; }
+        .customer-card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; }
+        .customer-card:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .loyalty-badge { border-radius: 20px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600; }
+        .loyalty-bronze { background: var(--bronze); color: white; }
+        .loyalty-silver { background: var(--silver); color: #333; }
+        .loyalty-gold { background: var(--gold); color: #333; }
+        .loyalty-vip { background: var(--vip); color: white; }
+        .stat-box { background: white; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .stat-number { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+        .history-item { padding: 10px 12px; border-bottom: 1px solid #eee; }
+        .history-item:last-child { border-bottom: none; }
+        .bill-amount { font-weight: 600; color: var(--primary); }
+        .stars { color: var(--accent); }
+        .search-box { position: relative; }
+        .search-box input { padding-left: 38px; border-radius: 8px; border: 1px solid #ddd; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; }
+        .btn-add { background: var(--success); color: white; border: none; border-radius: 8px; padding: 8px 16px; }
+        .view-container { display: none; }
+        .list-container { display: block; }
+        .active-view .list-container { display: none; }
+        .active-view .view-container { display: block; }
+        .progress-bar-custom { height: 8px; border-radius: 4px; background: #eee; }
+        .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--bronze), var(--silver), var(--gold)); width: 60%; }
+    </style>
+</head>
+<body>
+<!-- ===================================== -->
+<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  if (!isLoggedIn) {
+    window.location.replace("login.html");
+  }
+}
+checkAuth();
+</script>
+<!-- ===================================== -->
+
+<!-- Header -->
+<div class="header-bar d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <a href="dashboard.html" class="back-link" id="backBtn" onclick="goBack()"><i class="fas fa-arrow-left"></i></a>
+        <h5 class="mb-0" id="pageTitle"><i class="fas fa-users me-2"></i> Customers</h5>
+    </div>
+    <button class="btn btn-sm btn-light" id="addCustomerBtn" onclick="openNewCustomerModal()">
+        <i class="fas fa-user-plus me-1"></i> New
+    </button>
+</div>
+
+<div class="container px-3 mt-4" id="mainWrapper">
+
+    <!-- =================================== -->
+    <!-- CUSTOMER LIST VIEW -->
+    <!-- =================================== -->
+    <div class="list-container">
+        <!-- Search -->
+        <div class="search-box mb-3">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" class="form-control" placeholder="Search by name or mobile..." onkeyup="filterCustomers()">
+        </div>
+
+        <!-- Stats Summary -->
+        <div class="row g-2 mb-3">
+            <div class="col-4">
+                <div class="stat-box">
+                    <div class="stat-number" id="totalCustomers">38</div>
+                    <div class="small text-muted">Total</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stat-box">
+                    <div class="stat-number" id="todayVisits">2</div>
+                    <div class="small text-muted">Today</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stat-box">
+                    <div class="stat-number" id="topTier">Gold</div>
+                    <div class="small text-muted">Top Tier</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer List -->
+        <div id="customerList">
+            <!-- Loaded by JavaScript -->
+        </div>
+    </div>
+
+    <!-- =================================== -->
+    <!-- CUSTOMER DETAIL VIEW -->
+    <!-- =================================== -->
+    <div class="view-container" id="detailView">
+        <!-- Profile Card -->
+        <div class="card mb-3 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="display-1 text-muted mb-2"><i class="fas fa-user-circle"></i></div>
+                <h4 id="detailName">Perera, K.</h4>
+                <p class="text-muted mb-2" id="detailMobile"><i class="fas fa-mobile-alt me-2"></i>071-9876543</p>
+                <p class="small text-muted mb-3" id="detailSince">Member since: 15 Jan 2026</p>
+                
+                <span class="loyalty-badge loyalty-gold" id="detailLoyalty">Gold ⭐⭐⭐</span>
+                <div class="mt-2">
+                    <strong id="detailPoints">680 Points</strong>
+                    <div class="progress-bar-custom mt-2">
+                        <div class="progress-fill" id="pointsProgress" style="width: 68%;"></div>
+                    </div>
+                    <small class="text-muted">1,000 pts to VIP</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Stats -->
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <div class="stat-box">
+                    <div class="stat-number" id="detailSpent">Rs. 21,300</div>
+                    <div class="small text-muted">Total Spent</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-box">
+                    <div class="stat-number" id="detailVisits">32</div>
+                    <div class="small text-muted">Total Visits</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visit/Bill History -->
+        <h6 class="mb-2"><i class="fas fa-history me-2"></i> Visit & Bill History</h6>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-0">
+                <div id="historyList">
+                    <!-- History loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 mb-4">
+            <button class="btn btn-primary flex-grow-1" onclick="editCustomer()">
+                <i class="fas fa-edit me-1"></i> Edit
+            </button>
+            <button class="btn btn-outline-danger flex-grow-1" onclick="deleteCustomer()">
+                <i class="fas fa-trash-alt me-1"></i> Delete
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- NEW CUSTOMER MODAL -->
+<div class="modal fade" id="newCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" id="newName" class="form-control" placeholder="e.g. Perera, K.">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mobile Number *</label>
+                    <input type="tel" id="newMobile" class="form-control" placeholder="07X-XXXXXXX">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">WhatsApp (optional)</label>
+                    <input type="tel" id="newWhatsapp" class="form-control" placeholder="Same as mobile if blank">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Notes / Reference</label>
+                    <textarea id="newNotes" class="form-control" rows="2" placeholder="Any notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveNewCustomer()">Save Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ==========================================
+// CONFIG
+// ==========================================
+const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+
+// Loyalty Rules
+const loyaltyTiers = {
+    none: { name: 'Guest', stars: 0, minSpent: 0, badgeClass: '' },
+    bronze: { name: 'Bronze', stars: 1, minSpent: 1000, badgeClass: 'loyalty-bronze' },
+    silver: { name: 'Silver', stars: 2, minSpent: 5000, badgeClass: 'loyalty-silver' },
+    gold: { name: 'Gold', stars: 3, minSpent: 15000, badgeClass: 'loyalty-gold' },
+    vip: { name: 'VIP', stars: 4, minSpent: 50000, badgeClass: 'loyalty-vip' }
+};
+
+// Sample Data — replace with Google Sheets data later
+let customers = [
+    {
+        id: "CUST-001", name: "Perera, K.", mobile: "071-9876543", whatsapp: "071-9876543",
+        totalSpent: 21300, totalVisits: 32, points: 680, regDate: new Date("2026-01-15"),
+        history: [
+            { date: new Date("2026-11-19"), table: "Table 05", amount: 1650, billNo: "BILL-0892" },
+            { date: new Date("2026-11-15"), table: "Table 02", amount: 2100, billNo: "BILL-0875" },
+            { date: new Date("2026-11-10"), table: "Table 01", amount: 1450, billNo: "BILL-0850" },
+            { date: new Date("2026-11-02"), table: "Table 03", amount: 1900, billNo: "BILL-0810" },
+            { date: new Date("2026-10-28"), table: "Table 05", amount: 1700, billNo: "BILL-0785" }
+        ]
+    },
+    {
+        id: "CUST-002", name: "Silva, S.", mobile: "077-1234567", whatsapp: "",
+        totalSpent: 8450, totalVisits: 18, points: 240, regDate: new Date("2026-03-02"),
+        history: [
+            { date: new Date("2026-11-18"), table: "Table 02", amount: 1200, billNo: "BILL-0888" },
+            { date: new Date("2026-11-15"), table: "Table 03", amount: 2100, billNo: "BILL-0876" },
+            { date: new Date("2026-11-10"), table: "Table 01", amount: 950, billNo: "BILL-0845" }
+        ]
+    },
+    {
+        id: "CUST-003", name: "Jayasuriya, M.", mobile: "076-5551234", whatsapp: "076-5551234",
+        totalSpent: 2850, totalVisits: 7, points: 85, regDate: new Date("2026-08-20"),
+        history: [
+            { date: new Date("2026-11-19"), table: "Table 04", amount: 1350, billNo: "BILL-0893" },
+            { date: new Date("2026-11-05"), table: "Table 01", amount: 850, billNo: "BILL-0830" }
+        ]
+    },
+    {
+        id: "CUST-004", name: "Fernando, R.", mobile: "070-8889999", whatsapp: "",
+        totalSpent: 420, totalVisits: 2, points: 20, regDate: new Date("2026-11-01"),
+        history: [
+            { date: new Date("2026-11-10"), table: "Table 06", amount: 420, billNo: "BILL-0848" }
+        ]
+    }
+];
+
+let currentCustomerId = null;
+let newCustomerModal;
+
+// ==========================================
+// INIT
+// ==========================================
+window.onload = function() {
+    newCustomerModal = new bootstrap.Modal(document.getElementById('newCustomerModal'));
+    renderCustomerList();
+    updateStats();
+};
+
+// ==========================================
+// LIST VIEW
+// ==========================================
+function renderCustomerList(filterText = "") {
+    const container = document.getElementById("customerList");
+    container.innerHTML = "";
+    
+    let filtered = customers;
+    if (filterText) {
+        const ft = filterText.toLowerCase();
+        filtered = customers.filter(c => 
+            c.name.toLowerCase().includes(ft) || c.mobile.includes(ft)
+        );
+    }
+    
+    filtered.forEach(cust => {
+        const tier = getLoyaltyTier(cust.totalSpent);
+        const stars = "⭐".repeat(tier.stars);
+        const card = document.createElement("div");
+        card.className = "customer-card";
+        card.setAttribute("role", "button");
+        card.tabIndex = 0;
+        card.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <h6 class="mb-1">${escapeHtml(cust.name)}</h6>
+                    <div class="small text-muted"><i class="fas fa-mobile-alt me-1"></i>${escapeHtml(cust.mobile)}</div>
+                </div>
+                <span class="loyalty-badge ${tier.badgeClass}">${tier.name}${stars ? ` ${stars}` : ""}</span>
+            </div>
+            <div class="d-flex justify-content-between mt-2 small text-muted">
+                <span>${cust.totalVisits} visits</span>
+                <span>Rs. ${Number(cust.totalSpent).toLocaleString()}</span>
+            </div>`;
+        card.addEventListener("click", () => showCustomerDetail(cust.id));
+        card.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                showCustomerDetail(cust.id);
+            }
+        });
+        container.appendChild(card);
+    });
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="text-center text-muted py-4">No customers found.</div>';
+    }
+}
+
+function getLoyaltyTier(totalSpent) {
+    const tiers = Object.entries(loyaltyTiers);
+    for (let i = tiers.length - 1; i >= 0; i--) {
+        if (Number(totalSpent) >= tiers[i][1].minSpent) return tiers[i][1];
+    }
+    return loyaltyTiers.none;
+}
+
+function updateStats() {
+    document.getElementById("totalCustomers").textContent = customers.length;
+    const today = new Date();
+    const todayCount = customers.reduce((count, customer) => count + customer.history.filter(item => {
+        const date = new Date(item.date);
+        return date.getFullYear() === today.getFullYear() &&
+            date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+    }).length, 0);
+    document.getElementById("todayVisits").textContent = todayCount;
+    const tierOrder = ["Guest", "Bronze", "Silver", "Gold", "VIP"];
+    const highestTier = customers.reduce((highest, customer) => {
+        const tierName = getLoyaltyTier(customer.totalSpent).name;
+        return tierOrder.indexOf(tierName) > tierOrder.indexOf(highest) ? tierName : highest;
+    }, "Guest");
+    document.getElementById("topTier").textContent = highestTier;
+}
+
+function filterCustomers() {
+    renderCustomerList(document.getElementById("searchInput").value.trim());
+}
+
+function showCustomerDetail(customerId) {
+    const customer = customers.find(item => item.id === customerId);
+    if (!customer) return;
+    currentCustomerId = customerId;
+
+    const tier = getLoyaltyTier(customer.totalSpent);
+    document.getElementById("detailName").textContent = customer.name;
+    document.getElementById("detailMobile").innerHTML = `<i class="fas fa-mobile-alt me-2"></i>${escapeHtml(customer.mobile)}`;
+    document.getElementById("detailSince").textContent = `Member since: ${formatDate(customer.regDate)}`;
+    const loyalty = document.getElementById("detailLoyalty");
+    loyalty.className = `loyalty-badge ${tier.badgeClass}`;
+    loyalty.textContent = `${tier.name}${tier.stars ? ` ${"⭐".repeat(tier.stars)}` : ""}`;
+    document.getElementById("detailPoints").textContent = `${customer.points} Points`;
+    document.getElementById("pointsProgress").style.width = `${Math.min(100, Math.max(0, customer.points / 1000 * 100))}%`;
+    document.getElementById("detailSpent").textContent = `Rs. ${Number(customer.totalSpent).toLocaleString()}`;
+    document.getElementById("detailVisits").textContent = customer.totalVisits;
+
+    const historyList = document.getElementById("historyList");
+    historyList.innerHTML = "";
+    if (!customer.history.length) {
+        historyList.innerHTML = '<div class="history-item text-muted">No visit history yet.</div>';
+    } else {
+        customer.history.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(item => {
+            const row = document.createElement("div");
+            row.className = "history-item d-flex justify-content-between align-items-center gap-2";
+            row.innerHTML = `<div><div class="fw-semibold">${escapeHtml(item.table)}</div><div class="small text-muted">${formatDate(item.date)} · ${escapeHtml(item.billNo)}</div></div><span class="bill-amount">Rs. ${Number(item.amount).toLocaleString()}</span>`;
+            historyList.appendChild(row);
+        });
+    }
+
+    document.getElementById("mainWrapper").classList.add("active-view");
+    document.getElementById("pageTitle").innerHTML = '<i class="fas fa-user me-2"></i> Customer Details';
+    document.getElementById("addCustomerBtn").classList.add("d-none");
+    window.scrollTo(0, 0);
+}
+
+function goBack() {
+    document.getElementById("mainWrapper").classList.remove("active-view");
+    document.getElementById("pageTitle").innerHTML = '<i class="fas fa-users me-2"></i> Customers';
+    document.getElementById("addCustomerBtn").classList.remove("d-none");
+    currentCustomerId = null;
+    return false;
+}
+
+function openNewCustomerModal() {
+    currentCustomerId = null;
+    document.querySelector("#newCustomerModal .modal-title").textContent = "Add New Customer";
+    document.querySelector("#newCustomerModal .btn-success").textContent = "Save Customer";
+    ["newName", "newMobile", "newWhatsapp", "newNotes"].forEach(id => {
+        document.getElementById(id).value = "";
+    });
+    newCustomerModal.show();
+}
+
+function saveNewCustomer() {
+    const name = document.getElementById("newName").value.trim();
+    const mobile = document.getElementById("newMobile").value.trim();
+    if (!name || !mobile) {
+        alert("Please enter the customer's name and mobile number.");
+        return;
+    }
+
+    const existing = currentCustomerId && customers.find(item => item.id === currentCustomerId);
+    if (existing) {
+        existing.name = name;
+        existing.mobile = mobile;
+        existing.whatsapp = document.getElementById("newWhatsapp").value.trim() || mobile;
+        existing.notes = document.getElementById("newNotes").value.trim();
+    } else {
+        customers.unshift({
+            id: `CUST-${Date.now()}`,
+            name,
+            mobile,
+            whatsapp: document.getElementById("newWhatsapp").value.trim() || mobile,
+            notes: document.getElementById("newNotes").value.trim(),
+            totalSpent: 0,
+            totalVisits: 0,
+            points: 0,
+            regDate: new Date(),
+            history: []
+        });
+    }
+
+    newCustomerModal.hide();
+    renderCustomerList(document.getElementById("searchInput").value.trim());
+    updateStats();
+    if (existing) showCustomerDetail(existing.id);
+}
+
+function editCustomer() {
+    const customer = customers.find(item => item.id === currentCustomerId);
+    if (!customer) return;
+    document.querySelector("#newCustomerModal .modal-title").textContent = "Edit Customer";
+    document.querySelector("#newCustomerModal .btn-success").textContent = "Save Changes";
+    document.getElementById("newName").value = customer.name;
+    document.getElementById("newMobile").value = customer.mobile;
+    document.getElementById("newWhatsapp").value = customer.whatsapp || "";
+    document.getElementById("newNotes").value = customer.notes || "";
+    newCustomerModal.show();
+}
+
+function deleteCustomer() {
+    const customer = customers.find(item => item.id === currentCustomerId);
+    if (!customer || !window.confirm(`Delete ${customer.name}? This cannot be undone.`)) return;
+    customers = customers.filter(item => item.id !== currentCustomerId);
+    goBack();
+    renderCustomerList(document.getElementById("searchInput").value.trim());
+    updateStats();
+}
+
+function formatDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[character]);
+}
+</script>
+</body>
+</html>

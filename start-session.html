@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Session — CueClub Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42;
+            --secondary: #2d4263;
+            --accent: #e8b832;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+        body { background: #f0f2f5; min-height: 100vh; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; }
+        .header-bar h4 { margin: 0; font-weight: 600; }
+        .back-link { color: white; text-decoration: none; margin-right: 12px; }
+        .back-link:hover { color: var(--accent); }
+        .table-card { border-radius: 12px; border: 2px solid transparent; transition: all 0.25s ease; cursor: pointer; background: white; }
+        .table-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .table-card.selected { border-color: var(--accent); background: #fff9e8; box-shadow: 0 2px 8px rgba(232,184,50,0.25); }
+        .badge-snooker { background: var(--primary); }
+        .badge-pool { background: var(--secondary); }
+        .player-row { background: white; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .btn-start { background: var(--success); border: none; padding: 14px; font-size: 18px; font-weight: 600; border-radius: 10px; }
+        .btn-start:hover { background: #218838; }
+        .btn-add { color: var(--primary); border: 2px dashed var(--primary); background: transparent; border-radius: 8px; padding: 10px; width: 100%; }
+        .btn-add:hover { background: var(--primary); color: white; }
+        .rate-tag { background: var(--accent); color: var(--dark); font-weight: 600; border-radius: 20px; padding: 3px 10px; font-size: 13px; }
+        .step-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; font-weight: bold; margin-right: 10px; }
+        .remove-btn { color: var(--danger); border: none; background: none; font-size: 18px; }
+        .container { max-width: 720px; padding-bottom: 40px; }
+    </style>
+</head>
+<body>
+  <!-- ===================================== -->
+<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  if (!isLoggedIn) {
+    window.location.replace("login.html");
+  }
+}
+checkAuth();
+</script>
+<!-- ===================================== -->
+
+
+<!-- Header -->
+<div class="header-bar d-flex align-items-center">
+    <a href="#" class="back-link" onclick="history.back(); return false;">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h4><i class="fas fa-play-circle me-2"></i> Start New Session</h4>
+</div>
+
+<div class="container mt-4">
+
+    <!-- Step 1: Select Table -->
+    <div class="mb-4">
+        <h5 class="mb-3"><span class="step-number">1</span>Select a Table</h5>
+        <div class="row g-3" id="tableList">
+            <!-- Tables loaded by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Step 2: Add Players -->
+    <div class="mb-4">
+        <h5 class="mb-3"><span class="step-number">2</span>Add Players</h5>
+        <div id="playerContainer">
+            <!-- Player rows added here -->
+        </div>
+        <button class="btn btn-add mt-2" onclick="addPlayerRow()">
+            <i class="fas fa-user-plus me-2"></i> Add Another Player
+        </button>
+    </div>
+
+    <!-- Step 3: Start -->
+    <div class="mt-5">
+        <h5 class="mb-3"><span class="step-number">3</span>Ready?</h5>
+        <div id="summaryBox" class="bg-white rounded p-3 mb-3 d-none">
+            <p class="mb-1"><strong>Table:</strong> <span id="selTable">—</span></p>
+            <p class="mb-1"><strong>Rate:</strong> Rs. <span id="selRate">—</span>/hour</p>
+            <p class="mb-0"><strong>Players:</strong> <span id="selPlayers">0</span></p>
+        </div>
+        <button class="btn btn-start text-white w-100" onclick="startSession()">
+            <i class="fas fa-play me-2"></i> START SESSION
+        </button>
+    </div>
+
+</div>
+
+<script>
+// ==========================================
+// CONFIG — Replace with your Web App URL later
+// ==========================================
+const GOOGLE_SCRIPT_URL = ""; // e.g., https://script.google.com/macros/s/XXXX/exec
+
+let selectedTable = null;
+let playerCount = 0;
+
+// Sample table data — will load from Google Sheets later
+const tables = [
+    { id: "T01", name: "Table 01", type: "Snooker", rate: 1000, status: "Available" },
+    { id: "T02", name: "Table 02", type: "Snooker", rate: 1000, status: "Available" },
+    { id: "T03", name: "Table 03", type: "Snooker", rate: 1000, status: "Available" },
+    { id: "T04", name: "Table 04", type: "Snooker", rate: 1000, status: "Available" },
+    { id: "T05", name: "Table 05", type: "Pool", rate: 800, status: "Available" },
+    { id: "T06", name: "Table 06", type: "Pool", rate: 800, status: "Available" }
+];
+
+// ==========================================
+// INIT
+// ==========================================
+window.onload = function() {
+    renderTables();
+    addPlayerRow(); // start with 1 player row
+};
+
+function renderTables() {
+    const container = document.getElementById("tableList");
+    container.innerHTML = "";
+    
+    tables.forEach(table => {
+        const isAvailable = table.status === "Available";
+        const badgeClass = table.type === "Snooker" ? "badge-snooker" : "badge-pool";
+        
+        container.innerHTML += `
+            <div class="col-6 col-md-4">
+                <div class="card table-card p-3 ${!isAvailable ? 'opacity-50' : ''}" 
+                     id="card-${table.id}" 
+                     onclick="${isAvailable ? `selectTable('${table.id}', '${table.name}', ${table.rate})` : ''}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">${table.name}</h6>
+                        <span class="badge ${badgeClass}">${table.type}</span>
+                    </div>
+                    <div>
+                        <span class="rate-tag">Rs. ${table.rate}/hr</span>
+                    </div>
+                    <div class="mt-2 small">
+                        ${isAvailable 
+                            ? '<span class="text-success"><i class="fas fa-circle fa-xs"></i> Available</span>' 
+                            : '<span class="text-danger"><i class="fas fa-circle fa-xs"></i> Occupied</span>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// ==========================================
+// TABLE SELECTION
+// ==========================================
+function selectTable(id, name, rate) {
+    // Remove previous selection
+    document.querySelectorAll('.table-card').forEach(card => card.classList.remove('selected'));
+    
+    // Mark selected
+    selectedTable = { id, name, rate };
+    document.getElementById(`card-${id}`).classList.add('selected');
+    
+    // Update summary
+    document.getElementById("selTable").textContent = name + " — " + (tables.find(t=>t.id===id)?.type || "");
+    document.getElementById("selRate").textContent = rate;
+    document.getElementById("summaryBox").classList.remove("d-none");
+    updatePlayerCount();
+}
+
+// ==========================================
+// PLAYER ROWS
+// ==========================================
+function addPlayerRow() {
+    playerCount++;
+    const container = document.getElementById("playerContainer");
+    const rowId = `player-${playerCount}`;
+    
+    const row = document.createElement("div");
+    row.className = "player-row d-flex align-items-center justify-content-between";
+    row.id = rowId;
+    row.innerHTML = `
+        <div class="flex-grow-1 me-2">
+            <label class="small text-muted mb-1">Player ${playerCount} Name</label>
+            <input type="text" class="form-control player-name" placeholder="Enter name or mobile">
+        </div>
+        <button class="remove-btn" onclick="removePlayerRow('${rowId}')">
+            <i class="fas fa-times-circle"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    updatePlayerCount();
+}
+
+function removePlayerRow(rowId) {
+    const rows = document.querySelectorAll('.player-row');
+    if (rows.length <= 1) {
+        alert("⚠️ At least one player required");
+        return;
+    }
+    document.getElementById(rowId).remove();
+    updatePlayerCount();
+}
+
+function updatePlayerCount() {
+    const count = document.querySelectorAll('.player-row').length;
+    document.getElementById("selPlayers").textContent = count;
+}
+
+// ==========================================
+// START SESSION
+// ==========================================
+function startSession() {
+    // Validate table selected
+    if (!selectedTable) {
+        alert("⚠️ Please select a table first");
+        return;
+    }
+    
+    // Get player names
+    const players = [];
+    document.querySelectorAll('.player-name').forEach(input => {
+        const val = input.value.trim() || `Guest`;
+        players.push(val);
+    });
+    
+    const sessionData = {
+        action: "startSession",
+        tableId: selectedTable.id,
+        hourlyRate: selectedTable.rate,
+        openedBy: "Staff", // Replace with actual logged-in user
+        players: players
+    };
+    
+    console.log("📤 Starting session:", sessionData);
+    
+    // ✅ When your Google Script is ready, uncomment below:
+    /*
+    fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(sessionData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            alert("✅ Session started!\nSession ID: " + data.sessionId);
+            // Redirect to active session page
+            window.location.href = `active-session.html?id=${data.sessionId}`;
+        } else {
+            alert("❌ Error: " + (data.error || "Unknown error"));
+        }
+    });
+    */
+    
+    // Temporary success message while script is not connected
+    alert(`✅ Session Started!\n\nTable: ${selectedTable.name}\nPlayers: ${players.join(', ')}\nRate: Rs. ${selectedTable.rate}/hr\n\n📌 When your Google Script is deployed, this will save to your sheet automatically.`);
+    
+    // Reset form
+    document.querySelectorAll('.table-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById("summaryBox").classList.add("d-none");
+    document.getElementById("playerContainer").innerHTML = "";
+    playerCount = 0;
+    selectedTable = null;
+    addPlayerRow();
+}
+</script>
+
+</body>
+</html>

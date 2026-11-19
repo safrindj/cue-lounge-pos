@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Reports — CueClub Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42;
+            --secondary: #2d4263;
+            --accent: #e8b832;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+        }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index: 100; }
+        .back-link { color: white; text-decoration: none; margin-right: 12px; }
+        .stat-card { background: white; border-radius: 12px; padding: 16px 12px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .stat-label { font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .net-row { background: #e8f5e9; border-radius: 8px; padding: 10px; margin-top: 8px; }
+        .discount-line { color: var(--success); }
+        .expense-line { color: var(--danger); }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .item-row:last-child { border-bottom: none; }
+        .bar-container { display: flex; align-items: center; height: 28px; margin: 4px 0; }
+        .bar-label { width: 65px; font-size: 0.8rem; flex-shrink: 0; }
+        .bar-wrapper { flex-grow: 1; height: 20px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin: 0 10px; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; transition: width 0.3s ease; }
+        .bar-value { width: 90px; font-size: 0.8rem; font-weight: 600; text-align: right; flex-shrink: 0; }
+        .bar-sales { background: linear-gradient(90deg, var(--accent), #f5c518); }
+        .bar-table { background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+        .section-title { font-size: 1rem; font-weight: 600; color: #333; margin: 24px 0 12px; }
+        .period-selector { border-radius: 20px; padding: 6px 16px; border: none; background: var(--primary); color: white; font-size: 0.9rem; }
+        .table-responsive { border-radius: 8px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px; color: #666; border-top: none; }
+        table td { font-size: 0.9rem; vertical-align: middle; }
+        .text-profit { color: var(--success); font-weight: 600; }
+        .today-badge { background: var(--accent); color: var(--primary); font-weight: 600; border-radius: 10px; padding: 1px 6px; font-size: 0.7rem; }
+    </style>
+</head>
+<body>
+<!-- ===================================== -->
+<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  if (!isLoggedIn) {
+    window.location.replace("login.html");
+  }
+}
+checkAuth();
+</script>
+<!-- ===================================== -->
+
+<!-- Header -->
+<div class="header-bar d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <a href="dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i></a>
+        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i> Sales Reports</h5>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-light" onclick="exportReport()">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+    </div>
+</div>
+
+<div class="container px-3 mt-4">
+
+    <!-- Period Selector -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <select id="periodSelect" class="period-selector" onchange="changePeriod()">
+            <option value="today" selected>📅 Today</option>
+            <option value="week">📅 This Week</option>
+            <option value="month">📅 This Month</option>
+            <option value="custom">📅 Custom Range</option>
+        </select>
+        <span class="text-muted small" id="dateRange">19 Nov 2026</span>
+    </div>
+
+    <!-- 💰 Revenue Summary -->
+    <div class="row g-2 mb-3">
+        <div class="col-4">
+            <div class="stat-card">
+                <div class="stat-value" id="totalSales">18,450</div>
+                <div class="stat-label">Total Sales</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="stat-card">
+                <div class="stat-value text-primary" id="tableRevenue">14,200</div>
+                <div class="stat-label">Tables</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="stat-card">
+                <div class="stat-value text-success" id="productRevenue">4,250</div>
+                <div class="stat-label">Products</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📋 Income Calculation -->
+    <div class="summary-card mb-4">
+        <h6 class="mb-3"><i class="fas fa-calculator me-2"></i> Revenue Breakdown</h6>
+        
+        <div class="d-flex justify-content-between mb-1">
+            <span>Table Charges</span>
+            <span id="calcTable">Rs. 14,200.00</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span>Product Sales</span>
+            <span id="calcProducts">Rs. 4,250.00</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 discount-line">
+            <span>Less: Discounts Given</span>
+            <span>- Rs. 380.00</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 expense-line">
+            <span>Less: Expenses</span>
+            <span>- Rs. 1,200.00</span>
+        </div>
+        
+        <div class="net-row d-flex justify-content-between fw-bold">
+            <span>🟢 NET INCOME</span>
+            <span id="netIncome">Rs. 16,870.00</span>
+        </div>
+    </div>
+
+    <!-- 🥤 Top Selling Items -->
+    <h5 class="section-title mb-2"><i class="fas fa-star me-2"></i> Top Selling Items</h5>
+    <div class="summary-card mb-4">
+        <div id="topItemsList">
+            <!-- Rendered by JavaScript -->
+        </div>
+    </div>
+
+    <!-- 📈 Daily Trend -->
+    <h5 class="section-title mb-2"><i class="fas fa-chart-bar me-2"></i> Daily Trend (Last 7 Days)</h5>
+    <div class="summary-card mb-4">
+        <div id="dailyTrend">
+            <!-- Rendered by JavaScript -->
+        </div>
+    </div>
+
+    <!-- 📝 Daily Summary Table -->
+    <h5 class="section-title mb-2"><i class="fas fa-table me-2"></i> Daily Summary Details</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Sessions</th>
+                    <th>Revenue</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody id="dailyTableBody">
+                <!-- Rendered by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+// ==========================================
+// CONFIG
+// ==========================================
+const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+
+// Sample Data
+const reportData = {
+    period: "today",
+    dateRange: "19 Nov 2026",
+    totalSales: 18450,
+    tableRevenue: 14200,
+    productRevenue: 4250,
+    discounts: 380,
+    expenses: 1200,
+    topItems: [
+        { name: "Coca-Cola", emoji: "🥤", quantity: 18, revenue: 4500, percent: 100 },
+        { name: "Hot Coffee", emoji: "☕", quantity: 12, revenue: 3600, percent: 80 },
+        { name: "Water Bottle", emoji: "💧", quantity: 15, revenue: 2250, percent: 50 },
+        { name: "Cue Chalk", emoji: "🧱", quantity: 10, revenue: 1000, percent: 22 },
+        { name: "Pepsi", emoji: "🥤", quantity: 8, revenue: 2000, percent: 44 }
+    ],
+    dailyTrend: [
+        { date: "13 Nov", revenue: 8400, sessions: 6 },
+        { date: "14 Nov", revenue: 12200, sessions: 8 },
+        { date: "15 Nov", revenue: 18600, sessions: 14 },
+        { date: "16 Nov", revenue: 15100, sessions: 11 },
+        { date: "17 Nov", revenue: 11800, sessions: 8 },
+        { date: "18 Nov", revenue: 13500, sessions: 9 },
+        { date: "19 Nov", revenue: 18450, sessions: 12, isToday: true }
+    ]
+};
+
+// ==========================================
+// INIT
+// ==========================================
+window.onload = function() {
+    renderTopItems();
+    renderDailyTrend();
+    renderDailyTable();
+};
+
+// ==========================================
+// TOP SELLING ITEMS
+// ==========================================
+function renderTopItems() {
+    const container = document.getElementById("topItemsList");
+    container.innerHTML = "";
+    
+    reportData.topItems.forEach(item => {
+        container.innerHTML += `
+            <div class="item-row">
+                <span class="me-2">${item.emoji} ${item.name}</span>
+                <div class="flex-grow-1 mx-3">
+                    <div class="bar-wrapper">
+                        <div class="bar-fill bar-sales" style="width: ${item.percent}%;"></div>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">${item.quantity} sold</div>
+                    <div class="fw-bold">Rs. ${item.revenue.toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// ==========================================
+// DAILY TREND BARS
+// ==========================================
+function renderDailyTrend() {
+    const container = document.getElementById("dailyTrend");
+    container.innerHTML = "";
+    
+    // Find max revenue for scaling
+    const maxRev = Math.max(...reportData.dailyTrend.map(d => d.revenue));
+    
+    reportData.dailyTrend.forEach(day => {
+        const width = (day.revenue / maxRev) * 100;
+        
+        container.innerHTML += `
+            <div class="bar-container">
+                <div class="bar-label">
+                    ${day.isToday ? '<span class="today-badge">TODAY</span> ' : ''}${day.date}
+                </div>
+                <div class="bar-wrapper">
+                    <div class="bar-fill bar-table" style="width: ${width}%;"></div>
+                </div>
+                <div class="bar-value">Rs. ${day.revenue.toLocaleString()}</div>
+            </div>
+        `;
+    });
+}
+
+// ==========================================
+// DAILY SUMMARY TABLE
+// ==========================================
+function renderDailyTable() {
+    const tbody = document.getElementById("dailyTableBody");
+    tbody.innerHTML = "";
+    
+    reportData.dailyTrend.forEach(day => {
+        const profit = Math.round(day.revenue * 0.92); // Simplified profit calc
+        tbody.innerHTML += `
+            <tr${day.isToday ? ' class="table-light"' : ''}>
+                <td>${day.date}${day.isToday ? ' <small class="today-badge">Today</small>' : ''}</td>
+                <td>${day.sessions}</td>
+                <td>Rs. ${day.revenue.toLocaleString()}</td>
+                <td class="text-profit">Rs. ${profit.toLocaleString()}</td>
+            </tr>
+        `;
+    });
+}
+
+// ==========================================
+// PERIOD & EXPORT
+// ==========================================
+function changePeriod() {
+    const period = document.getElementById("periodSelect").value;
+    // In real app, fetch data for selected period here
+    const periodLabels = {
+        today: "19 Nov 2026",
+        week: "13–19 Nov 2026",
+        month: "1–30 Nov 2026",
+        custom: "Select Date Range"
+    };
+    document.getElementById("dateRange").textContent = periodLabels[period];
+    alert(`✅ Period changed to: ${period.toUpperCase()}\n\nIn live version, data will refresh automatically.`);
+}
+
+function exportReport() {
+    const rows = [
+        ["Sales Report", reportData.dateRange],
+        [],
+        ["Metric", "Amount (Rs.)"],
+        ["Total Sales", reportData.totalSales],
+        ["Table Revenue", reportData.tableRevenue],
+        ["Product Revenue", reportData.productRevenue],
+        ["Discounts", reportData.discounts],
+        ["Expenses", reportData.expenses],
+        ["Net Income", reportData.totalSales - reportData.discounts - reportData.expenses],
+        [],
+        ["Top Selling Items"],
+        ["Item", "Quantity Sold", "Revenue (Rs.)"],
+        ...reportData.topItems.map(item => [item.name, item.quantity, item.revenue]),
+        [],
+        ["Daily Summary"],
+        ["Date", "Sessions", "Revenue (Rs.)", "Profit (Rs.)"],
+        ...reportData.dailyTrend.map(day => [
+            day.date,
+            day.sessions,
+            day.revenue,
+            Math.round(day.revenue * 0.92)
+        ])
+    ];
+
+    const csv = rows.map(row => row.map(value => {
+        const text = String(value ?? "");
+        return `"${text.replace(/"/g, '""')}"`;
+    }).join(",")).join("\r\n");
+    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sales-report-${reportData.period}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
+
