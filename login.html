@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+da<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1a2c42">
-    <title>Dashboard — PYRAMID SNOOKER PALOR</title>
+    <title>Staff sign in — PYRAMID SNOOKER PALOR</title>
     <style>
         :root { color-scheme: light; --primary: #1a2c42; --secondary: #2d4263; --accent: #e8b832; }
         * { box-sizing: border-box; }
@@ -19,34 +19,41 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         main {
-            width: min(100%, 560px);
+            width: min(100%, 440px);
             padding: clamp(24px, 6vw, 40px);
             border-radius: 20px;
             background: #fff;
             box-shadow: 0 10px 40px rgba(0, 0, 0, .2);
-            text-align: center;
         }
-        .club-logo {
-            display: block;
-            width: 88px;
-            height: 88px;
-            object-fit: contain;
-            margin: 0 auto 8px;
+        .brand-mark {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--primary);
+            color: var(--accent);
+            font-size: 1.5rem;
+            font-weight: 800;
         }
-        h1 { margin: 8px 0; font-size: clamp(1.5rem, 5vw, 2rem); }
-        .welcome { color: #687386; }
-        .session-card {
-            margin: 28px 0 20px;
-            padding: 18px;
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
-            background: #f8f9fa;
-            text-align: left;
+        h1 { margin: 0; text-align: center; font-size: clamp(1.35rem, 5vw, 1.8rem); }
+        .intro { margin: 8px 0 28px; color: #687386; text-align: center; }
+        label { display: block; margin: 18px 0 7px; font-weight: 600; }
+        input, select {
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 12px;
+            border: 1px solid #cbd1d9;
+            border-radius: 9px;
+            background: white;
+            color: var(--primary);
+            font: inherit;
         }
-        .session-card p { margin: 6px 0; overflow-wrap: anywhere; }
-        .label { color: #687386; }
+        input:focus, select:focus { outline: 3px solid rgba(232, 184, 50, .45); border-color: var(--secondary); }
         button {
             width: 100%;
+            margin-top: 26px;
             padding: 13px 18px;
             border: 0;
             border-radius: 10px;
@@ -58,45 +65,61 @@
         }
         button:hover { background: var(--secondary); }
         button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+        .error { min-height: 1.25em; margin: 12px 0 0; color: #a12626; }
     </style>
 </head>
 <body>
     <main>
-        <img class="club-logo" src="./pyramid_logo.svg" alt="PYRAMID SNOOKER PALOR logo">
+        <div class="brand-mark" aria-hidden="true">P</div>
         <h1>PYRAMID SNOOKER PALOR</h1>
-        <p class="welcome" id="welcomeMessage">Loading your session…</p>
-        <section class="session-card" aria-label="Session details">
-            <p><span class="label">Profile:</span> <strong id="staffName"></strong></p>
-            <p><span class="label">Role:</span> <strong id="staffRole"></strong></p>
-            <p><span class="label">Signed in:</span> <strong id="loginTime"></strong></p>
-        </section>
-        <button type="button" id="logoutButton">Log out</button>
+        <p class="intro">Sign in to start your staff session.</p>
+        <form id="loginForm">
+            <label for="staffName">Staff name</label>
+            <input id="staffName" name="staffName" type="text" autocomplete="name" maxlength="80" required>
+            <label for="staffRole">Role</label>
+            <select id="staffRole" name="staffRole" required>
+                <option value="" disabled selected>Select your role</option>
+                <option value="Manager">Manager</option>
+                <option value="Receptionist">Receptionist</option>
+                <option value="Staff">Staff</option>
+            </select>
+            <p class="error" id="loginError" role="alert" aria-live="polite"></p>
+            <button type="submit">Sign in</button>
+        </form>
     </main>
     <script>
-        const session = sessionStorage.getItem("currentStaff");
-        if (!session) {
-            window.location.replace("./index.html");
-        } else {
+        const existingSession = sessionStorage.getItem("currentStaff");
+        if (existingSession) {
             try {
-                const staff = JSON.parse(session);
-                if (!staff || typeof staff.name !== "string" || typeof staff.role !== "string") {
-                    throw new Error("Invalid session");
+                const staff = JSON.parse(existingSession);
+                if (staff && typeof staff.name === "string" && typeof staff.role === "string") {
+                    window.location.replace("./dashboard.html");
+                } else {
+                    sessionStorage.removeItem("currentStaff");
                 }
-                document.getElementById("welcomeMessage").textContent = `Welcome, ${staff.name}`;
-                document.getElementById("staffName").textContent = staff.name;
-                document.getElementById("staffRole").textContent = staff.role;
-                const loginDate = new Date(staff.loginTime);
-                document.getElementById("loginTime").textContent = Number.isNaN(loginDate.getTime())
-                    ? "Unknown"
-                    : loginDate.toLocaleString();
             } catch {
                 sessionStorage.removeItem("currentStaff");
-                window.location.replace("./index.html");
             }
         }
-        document.getElementById("logoutButton").addEventListener("click", () => {
-            sessionStorage.removeItem("currentStaff");
-            window.location.replace("./index.html");
+
+        document.getElementById("loginForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const name = document.getElementById("staffName").value.trim();
+            const role = document.getElementById("staffRole").value;
+            if (!name || !role) {
+                document.getElementById("loginError").textContent = "Enter your name and select a role.";
+                return;
+            }
+            try {
+                sessionStorage.setItem("currentStaff", JSON.stringify({
+                    name,
+                    role,
+                    loginTime: new Date().toISOString()
+                }));
+                window.location.assign("./dashboard.html");
+            } catch {
+                document.getElementById("loginError").textContent = "Your session could not be saved. Please try again.";
+            }
         });
     </script>
 </body>
