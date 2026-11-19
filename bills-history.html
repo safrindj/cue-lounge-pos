@@ -64,7 +64,7 @@ checkAuth();
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
-        <a href="dashboard.html" class="back-link" id="mainBackBtn" onclick="goBackToList()"><i class="fas fa-arrow-left"></i></a>
+        <a href="dashboard.html" class="back-link" id="mainBackBtn"><i class="fas fa-arrow-left"></i></a>
         <h5 class="mb-0" id="pageTitle"><i class="fas fa-file-invoice me-2"></i> Bills & History</h5>
     </div>
     <button class="btn btn-sm btn-light" onclick="refreshData()">
@@ -350,7 +350,6 @@ function openBill(id) {
     document.getElementById("detailPaidAmount").textContent = currency(bill.paidAmount);
     document.querySelector("#partialPaymentStatus span:last-child").innerHTML = `Paid: ${currency(bill.paidAmount)}<br>Balance: ${currency(bill.balance)}`;
     document.querySelector("#creditStatus span:last-child").textContent = `Due: ${currency(bill.balance)}`;
-    document.getElementById("mainBackBtn").href = "#";
 }
 
 function goBackToList() {
@@ -413,12 +412,8 @@ function editBill() {
     if (typeof dialog.showModal === "function") dialog.showModal();
 }
 
-document.getElementById("mainBackBtn").addEventListener("click", event => {
-    if (document.getElementById("mainWrapper").classList.contains("active-view")) {
-        event.preventDefault();
-        goBackToList();
-    }
-});
+/* Top-left back arrow always navigates to dashboard.html.
+   In bill detail view, use the "Back to Bill List" button to return to the list. */
 
 renderBills();
 </script>
