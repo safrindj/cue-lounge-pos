@@ -43,9 +43,9 @@
         .prod-btn { border-radius:10px; border:1px solid #e0e4ea; background:#fff; padding:12px 6px; font-size:.9rem; transition:.15s; }
         .prod-btn:hover { border-color: var(--accent); background:#fff9e8; transform: translateY(-1px); }
         .prod-btn .emoji { font-size:1.4rem; display:block; }
-        .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:200; padding:16px; }
-        .modal-mask.show { display:flex; }
-        .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; }
+        .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:2000; padding:16px; overflow-y:auto; }
+        .modal-mask.show { display:block !important; }
+        .modal-box { background:#fff !important; color:#212529 !important; border-radius:14px; padding:20px; max-width:460px; margin:6vh auto 0; display:block !important; position:relative; z-index:2001; box-shadow:0 10px 40px rgba(0,0,0,.3); }
         .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; padding:12px 20px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:.25s; z-index:300; max-width:90%; }
         .toast.show { opacity:1; }
     </style>
@@ -84,7 +84,7 @@ checkAuth();
 
 <!-- ===== MODAL: ADD PLAYER to a running session ===== -->
 <div class="modal-mask" id="mAddPlayer">
-    <div class="modal">
+    <div class="modal-box">
         <h5><i class="fas fa-user-plus me-2"></i>Add Player</h5>
         <p class="text-muted small mb-2">to <b id="apTable">—</b> (joins now)</p>
         <label class="form-label small text-muted">Player Name / Mobile</label>
@@ -98,7 +98,7 @@ checkAuth();
 
 <!-- ===== MODAL: QUICK SALE — charge item to an individual player ===== -->
 <div class="modal-mask" id="mQuickSale">
-    <div class="modal">
+    <div class="modal-box">
         <h5 id="qsTitle"><i class="fas fa-shopping-basket me-2"></i>Add to Bill</h5>
         <p class="text-muted small mb-2">Table: <b id="qsTable">—</b></p>
         <div id="qsProducts">
