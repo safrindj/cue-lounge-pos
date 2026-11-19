@@ -328,6 +328,7 @@ function attemptLogin() {
     // Check PIN
     if (enteredPin === selectedStaff.pin) {
         // Store session
+        sessionStorage.setItem("cueclubLoggedIn", "true");
         sessionStorage.setItem("currentStaff", JSON.stringify({
             name: selectedStaff.name,
             role: selectedStaff.role,

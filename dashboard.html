@@ -7,7 +7,7 @@
     <script>
         // ✅ FIXED: accepts EITHER session key — no more redirect loop
         (function () {
-            var loggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true"
+            var loggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null)
                 || sessionStorage.getItem("currentStaff") !== null;
             if (!loggedIn) {
                 window.location.replace("login.html");
@@ -273,5 +273,6 @@ function formatCurrency(amount) {
     return "Rs. " + amount.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
+<script src="sidebar.js"></script>
 </body>
 </html>

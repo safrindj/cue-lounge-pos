@@ -49,7 +49,7 @@
 <!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
 <script>
 function checkAuth() {
-  const isLoggedIn = sessionStorage.getItem("cueclubLoggedIn") === "true";
+  const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
   if (!isLoggedIn) {
     window.location.replace("login.html");
   }
@@ -340,6 +340,7 @@ function exportReport() {
     URL.revokeObjectURL(url);
 }
 </script>
+<script src="sidebar.js"></script>
 </body>
 </html>
 
