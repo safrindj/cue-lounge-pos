@@ -127,9 +127,24 @@ function refreshOccupied(){
     var active = loadActiveSessions();
     tables.forEach(function(t){ t.status = active.some(function(s){ return s.tableId === t.id; }) ? "Occupied" : "Available"; });
 }
+function injectCustomerDatalist(){
+    if (document.getElementById("customerNames")) return;
+    var custs = [];
+    try { custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || []; } catch(e){ custs = []; }
+    var dl = document.createElement("datalist");
+    dl.id = "customerNames";
+    custs.forEach(function(c){
+        if (c && c.name) {
+            var o = document.createElement("option"); o.value = c.name; if (c.mobile) o.label = c.mobile; dl.appendChild(o);
+            if (c.mobile) { var o2 = document.createElement("option"); o2.value = c.mobile; o2.label = c.name; dl.appendChild(o2); }
+        }
+    });
+    document.body.appendChild(dl);
+}
 try { tables.forEach(function (t) { t.rate = (window.APP_SETTINGS && APP_SETTINGS.rateForType) ? APP_SETTINGS.rateForType(t.type) : t.rate; }); } catch(e){}
 window.onload = function() {
     refreshOccupied();
+    injectCustomerDatalist();
     renderTables();
     addPlayerRow(); // start with 1 player row
 };
@@ -197,7 +212,7 @@ function addPlayerRow() {
     row.innerHTML = `
         <div class="flex-grow-1 me-2">
             <label class="small text-muted mb-1">Player ${playerCount} Name</label>
-            <input type="text" class="form-control player-name" placeholder="Enter name or mobile">
+            <input type="text" class="form-control player-name" placeholder="Enter name or mobile" list="customerNames" autocomplete="off">
         </div>
         <button class="remove-btn" onclick="removePlayerRow('${rowId}')">
             <i class="fas fa-times-circle"></i>
@@ -241,6 +256,19 @@ function startSession() {
         players.push(val || ("Guest " + (players.length + 1)));
     });
     if (!hasName) { alert("⚠️ Please enter at least one player name"); return; }
+
+    // Block duplicate player: same person cannot be in two active sessions at once
+    const activeNow = loadActiveSessions();
+    const activeNames = [];
+    activeNow.forEach(s => (s.players||[]).forEach(p => activeNames.push(String(p.name||"").trim().toLowerCase())));
+    const seenHere = {};
+    for (let pi = 0; pi < players.length; pi++) {
+        const key = players[pi].trim().toLowerCase();
+        if (!key || key.indexOf("guest") === 0) continue;
+        if (seenHere[key]) { alert("⚠️ Duplicate player: " + players[pi] + " is added twice."); return; }
+        seenHere[key] = true;
+        if (activeNames.indexOf(key) !== -1) { alert("⚠️ " + players[pi] + " is already playing on another active table."); return; }
+    }
 
     // Block starting a table that already has a running session
     const active = loadActiveSessions();

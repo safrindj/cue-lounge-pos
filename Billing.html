@@ -251,6 +251,21 @@ function lookupCustomer(value) {
         byId('discountLevel').value = String(customer.discount);
         applyDiscount();
     } else {
+        // Check persisted customers for an admin-set manual loyalty discount override
+        let matched = null;
+        try {
+            const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
+            matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized);
+        } catch(e){ matched = null; }
+        if (matched && matched.manualDiscount != null) {
+            bill.customerName = matched.name;
+            bill.customerMobile = value.trim();
+            byId('customerName').textContent = `Customer: ${matched.name} • Manual discount ${matched.manualDiscount}% (admin-set)`;
+            byId('loyaltyBadge').textContent = `Manual ${matched.manualDiscount}%`;
+            byId('discountLevel').value = String(matched.manualDiscount);
+            applyDiscount();
+            return;
+        }
         bill.customerName = normalized ? 'Guest Customer' : 'Guest Customer';
         bill.customerMobile = value.trim();
         byId('customerName').textContent = normalized ? 'Customer not found — guest discount applies.' : 'No customer selected — guest discount applies.';

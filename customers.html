@@ -199,6 +199,10 @@ checkAuth();
                     <label class="form-label">Notes / Reference</label>
                     <textarea id="newNotes" class="form-control" rows="2" placeholder="Any notes..."></textarea>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Loyalty Discount % <span class="text-muted small">(admin override — leave blank for auto by spend)</span></label>
+                    <input type="number" id="newManualDiscount" class="form-control" placeholder="e.g. 15" min="0" max="100" step="1">
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -264,6 +268,9 @@ let customers = [
 ];
 
 let currentCustomerId = null;
+const CUSTOMERS_KEY = "cueclubCustomers";
+function saveCustomers(){ try { localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers)); } catch(e){} }
+try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) customers = _savedCust; } catch(e){}
 let newCustomerModal;
 
 // ==========================================
@@ -401,7 +408,7 @@ function openNewCustomerModal() {
     currentCustomerId = null;
     document.querySelector("#newCustomerModal .modal-title").textContent = "Add New Customer";
     document.querySelector("#newCustomerModal .btn-success").textContent = "Save Customer";
-    ["newName", "newMobile", "newWhatsapp", "newNotes"].forEach(id => {
+    ["newName", "newMobile", "newWhatsapp", "newNotes", "newManualDiscount"].forEach(id => {
         document.getElementById(id).value = "";
     });
     newCustomerModal.show();
@@ -415,12 +422,15 @@ function saveNewCustomer() {
         return;
     }
 
+    const mdVal = document.getElementById("newManualDiscount").value.trim();
+    const manualDiscount = mdVal === "" ? null : Math.max(0, Math.min(100, Number(mdVal) || 0));
     const existing = currentCustomerId && customers.find(item => item.id === currentCustomerId);
     if (existing) {
         existing.name = name;
         existing.mobile = mobile;
         existing.whatsapp = document.getElementById("newWhatsapp").value.trim() || mobile;
         existing.notes = document.getElementById("newNotes").value.trim();
+        existing.manualDiscount = manualDiscount;
     } else {
         customers.unshift({
             id: `CUST-${Date.now()}`,
@@ -428,6 +438,7 @@ function saveNewCustomer() {
             mobile,
             whatsapp: document.getElementById("newWhatsapp").value.trim() || mobile,
             notes: document.getElementById("newNotes").value.trim(),
+            manualDiscount: manualDiscount,
             totalSpent: 0,
             totalVisits: 0,
             points: 0,
@@ -436,6 +447,7 @@ function saveNewCustomer() {
         });
     }
 
+    saveCustomers();
     newCustomerModal.hide();
     renderCustomerList(document.getElementById("searchInput").value.trim());
     updateStats();
@@ -451,6 +463,7 @@ function editCustomer() {
     document.getElementById("newMobile").value = customer.mobile;
     document.getElementById("newWhatsapp").value = customer.whatsapp || "";
     document.getElementById("newNotes").value = customer.notes || "";
+    document.getElementById("newManualDiscount").value = (customer.manualDiscount != null ? customer.manualDiscount : "");
     newCustomerModal.show();
 }
 
@@ -458,6 +471,7 @@ function deleteCustomer() {
     const customer = customers.find(item => item.id === currentCustomerId);
     if (!customer || !window.confirm(`Delete ${customer.name}? This cannot be undone.`)) return;
     customers = customers.filter(item => item.id !== currentCustomerId);
+    saveCustomers();
     goBack();
     renderCustomerList(document.getElementById("searchInput").value.trim());
     updateStats();
