@@ -8,36 +8,46 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #1a2c42;
-            --secondary: #2d4263;
-            --accent: #e8b832;
-            --success: #28a745;
-            --danger: #dc3545;
-            --warning: #ffc107;
+            --primary: #1a2c42; --secondary: #2d4263; --accent: #e8b832;
+            --success: #28a745; --danger: #dc3545; --warning: #ffc107;
         }
         body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
         .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top:0; z-index:100; }
         .back-link { color: white; text-decoration: none; margin-right: 12px; }
         .back-link:hover { color: var(--accent); }
         .session-card { background: white; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 18px; border-top: 4px solid var(--primary); }
-        .session-card.paused { border-top-color: var(--warning); opacity: .92; }
+        .session-card.paused { border-top-color: var(--warning); opacity: .93; }
         .session-head { padding: 14px 18px; background: linear-gradient(135deg, #f8f9fa, #eef1f5); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-        .timer-display { font-size: 2.2rem; font-weight: 700; letter-spacing: 2px; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .timer-display { font-size: 2rem; font-weight: 700; letter-spacing: 2px; color: var(--primary); font-variant-numeric: tabular-nums; }
         .paused .timer-display { color: var(--warning); }
         .badge-type-snooker { background: var(--primary); color:#fff; }
         .badge-type-pool { background: var(--secondary); color:#fff; }
         .badge-rate { background: var(--accent); color: var(--primary); font-weight: 600; }
-        .player-chip { display:inline-block; background: #eef2f7; color: var(--primary); border-radius: 20px; padding: 4px 12px; font-size: .85rem; margin: 2px 4px 2px 0; font-weight:500; }
+        .player-chip { display:inline-block; background:#eef2f7; color:var(--primary); border-radius:20px; padding:4px 12px; font-size:.85rem; margin:2px 4px 2px 0; font-weight:500; }
         .player-chip i { color: var(--accent); }
-        .charge { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+        .charge { font-weight: 700; color: var(--primary); }
+        .grand { font-size: 1.05rem; color: var(--danger); font-weight:700; }
         .btn-end { background: var(--danger); color:#fff; }
         .btn-pause { background: var(--warning); color:#212529; }
         .btn-resume { background: var(--success); color:#fff; }
+        .btn-add { background: var(--primary); color:#fff; }
+        .btn-item { background: var(--secondary); color:#fff; }
         .empty-state { text-align:center; padding: 60px 20px; color:#888; }
         .empty-state i { font-size: 3.5rem; color:#ccc; margin-bottom: 16px; display:block; }
         .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--success); margin-right:6px; animation: pulse 1.5s infinite; }
         .paused .status-dot { background: var(--warning); animation: none; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .bill-detail { background:#fafbfc; border-top:1px solid #e5e9ef; padding:14px 18px; }
+        .player-bill { background:white; border:1px solid #e5e9ef; border-left:4px solid var(--primary); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+        .item-line { display:flex; justify-content:space-between; font-size:.88rem; color:#555; padding:2px 0; }
+        .prod-btn { border-radius:10px; border:1px solid #e0e4ea; background:#fff; padding:12px 6px; font-size:.9rem; transition:.15s; }
+        .prod-btn:hover { border-color: var(--accent); background:#fff9e8; transform: translateY(-1px); }
+        .prod-btn .emoji { font-size:1.4rem; display:block; }
+        .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:200; padding:16px; }
+        .modal-mask.show { display:flex; }
+        .modal { background:#fff; border-radius:14px; padding:20px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; }
+        .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; padding:12px 20px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:.25s; z-index:300; max-width:90%; }
+        .toast.show { opacity:1; }
     </style>
 </head>
 <body>
@@ -72,132 +82,261 @@ checkAuth();
     </div>
 </div>
 
+<!-- ===== MODAL: ADD PLAYER to a running session ===== -->
+<div class="modal-mask" id="mAddPlayer">
+    <div class="modal">
+        <h5><i class="fas fa-user-plus me-2"></i>Add Player</h5>
+        <p class="text-muted small mb-2">to <b id="apTable">—</b> (joins now)</p>
+        <label class="form-label small text-muted">Player Name / Mobile</label>
+        <input type="text" id="apName" class="form-control" placeholder="Enter name">
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button class="btn btn-secondary" onclick="closeModal('mAddPlayer')">Cancel</button>
+            <button class="btn btn-primary" style="background:var(--primary);border:none" onclick="confirmAddPlayer()">Add Player</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL: QUICK SALE — charge item to an individual player ===== -->
+<div class="modal-mask" id="mQuickSale">
+    <div class="modal">
+        <h5 id="qsTitle"><i class="fas fa-shopping-basket me-2"></i>Add to Bill</h5>
+        <p class="text-muted small mb-2">Table: <b id="qsTable">—</b></p>
+        <div id="qsProducts">
+            <div class="row g-2" id="qsProductGrid"></div>
+        </div>
+        <div id="qsPlayers" style="display:none">
+            <p class="small text-muted">Charge <b id="qsProdName">—</b> to which player?</p>
+            <div id="qsPlayerList"></div>
+            <button class="btn btn-sm btn-link text-muted p-0 mt-2" onclick="showQsProducts()"><i class="fas fa-arrow-left me-1"></i>Back to products</button>
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-secondary" onclick="closeModal('mQuickSale')">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script src="app-settings.js"></script>
 <script>
 const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
 const BILLS_KEY = "cueclubBills";
+const PRODUCTS_KEY = "cueclub-products";
 let sessions = [];
+let pendingSessionId = null;
+let pendingProduct = null;
+const expandedIds = new Set();
 
 function loadSessions(){ try { sessions = JSON.parse(localStorage.getItem(ACTIVE_SESSIONS_KEY) || "[]") || []; } catch(e){ sessions = []; } }
 function saveSessions(){ localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions)); }
 function money(n){ return "Rs. " + Number(n || 0).toFixed(2); }
-function curSymbol(){ return (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) || "Rs. "; }
+function curSym(){ return (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) || "Rs. "; }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+function escapeHtml(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function loadProducts(){
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(PRODUCTS_KEY) || "[]") || []; } catch(e){ list = []; }
+    const defaults = [
+        { id:"D1", name:"Coca-Cola",    emoji:"🥤", price:250 },
+        { id:"D2", name:"Pepsi",        emoji:"🥤", price:250 },
+        { id:"W1", name:"Water Bottle", emoji:"💧", price:150 },
+        { id:"C1", name:"Hot Coffee",   emoji:"☕", price:300 },
+        { id:"T1", name:"Cue Chalk",    emoji:"🧱", price:100 },
+        { id:"G1", name:"Pool Glove",   emoji:"🧤", price:350 }
+    ];
+    const merged = {};
+    defaults.forEach(p => merged[p.id] = p);
+    list.forEach(p => { if (p && p.id) merged[p.id] = { id:p.id, name:p.name, emoji:p.emoji || "📦", price:Number(p.price||0) }; });
+    return Object.values(merged).filter(p => Number(p.price) > 0);
+}
 
 function elapsedMs(s){
     const end = s.isPaused ? new Date(s.pausedTime).getTime() : Date.now();
     return Math.max(0, end - new Date(s.startTime).getTime() - (s.totalPausedDuration || 0));
 }
 function fmtDuration(ms){
-    const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000), s = Math.floor((ms%60000)/1000);
-    return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
+    return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
 }
-function tableCharge(s){ return (elapsedMs(s)/3600000) * Number(s.hourlyRate || 0); }
+function tableCharge(s){ return (elapsedMs(s)/3600000) * Number(s.hourlyRate||0); }
+function playerSubtotal(p){ if(!p.items) p.items=[]; return p.items.reduce((t,it)=>t+Number(it.price||0)*Number(it.qty||0),0); }
+function productTotal(s){ return (s.players||[]).reduce((t,p)=>t+playerSubtotal(p),0); }
 
 function render(){
     loadSessions();
     const grid = document.getElementById("sessionsGrid");
     const empty = document.getElementById("emptyState");
     document.getElementById("summaryLine").textContent =
-        sessions.length + " active table" + (sessions.length===1?"":"s") + " · running timers update live";
-
-    if (sessions.length === 0){ grid.innerHTML = ""; empty.style.display = "block"; return; }
+        sessions.length + " active table" + (sessions.length===1?"":"s") + " · timers update live";
+    if (sessions.length === 0){ grid.innerHTML=""; empty.style.display="block"; return; }
     empty.style.display = "none";
 
-    grid.innerHTML = sessions.map(function(s){
-        const typeBadge = (String(s.tableType||"").toLowerCase().indexOf("pool") !== -1) ? "badge-type-pool" : "badge-type-snooker";
-        const playersHtml = (s.players || []).map(function(p){
-            return '<span class="player-chip"><i class="fas fa-user me-1"></i>' + escapeHtml(p.name) + '</span>';
-        }).join("") || '<span class="text-muted small">No players</span>';
-        return '<div class="session-card ' + (s.isPaused ? "paused" : "") + '" data-id="' + s.id + '">' +
-            '<div class="session-head">' +
-                '<div><h5 class="mb-1"><span class="status-dot"></span>' + escapeHtml(s.tableName || "Table") +
-                ' <span class="badge ' + typeBadge + ' ms-1">' + escapeHtml(s.tableType || "") + '</span></h5>' +
-                '<small class="text-muted">Started ' + new Date(s.startTime).toLocaleString() + (s.openedBy ? ' · by ' + escapeHtml(s.openedBy) : "") + '</small></div>' +
-                '<span class="badge badge-rate">' + curSymbol() + Number(s.hourlyRate||0).toFixed(0) + '/hr</span>' +
-            '</div>' +
-            '<div class="p-3">' +
-                '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">' +
-                    '<div class="timer-display" data-timer="' + s.id + '">00:00:00</div>' +
-                    '<div class="text-end"><div class="text-muted small">Est. table charge</div><div class="charge" data-charge="' + s.id + '">Rs. 0.00</div></div>' +
-                '</div>' +
-                '<div class="mb-3"><small class="text-muted d-block mb-1">Players (' + (s.players||[]).length + ')</small>' + playersHtml + '</div>' +
-                '<div class="d-flex gap-2">' +
-                    (s.isPaused
-                        ? '<button class="btn btn-resume flex-grow-1" onclick="togglePause(\'' + s.id + '\')"><i class="fas fa-play me-1"></i>Resume</button>'
-                        : '<button class="btn btn-pause flex-grow-1" onclick="togglePause(\'' + s.id + '\')"><i class="fas fa-pause me-1"></i>Pause</button>') +
-                    '<button class="btn btn-end flex-grow-1" onclick="endSession(\'' + s.id + '\')"><i class="fas fa-stop-circle me-1"></i>End &amp; Bill</button>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
+    grid.innerHTML = sessions.map(s => {
+        const typeBadge = String(s.tableType||"").toLowerCase().indexOf("pool")!==-1 ? "badge-type-pool" : "badge-type-snooker";
+        const players = s.players || [];
+        const chips = players.map(p => '<span class="player-chip"><i class="fas fa-user me-1"></i>'+escapeHtml(p.name)+'</span>').join("") || '<span class="text-muted small">No players</span>';
+        const prod = productTotal(s);
+        const itemCount = players.reduce((t,p)=>t+(p.items||[]).reduce((a,it)=>a+Number(it.qty||0),0),0);
+        const expanded = expandedIds.has(s.id);
+
+        let billDetail = "";
+        if (expanded){
+            billDetail = '<div class="bill-detail"><h6 class="mb-2"><i class="fas fa-receipt me-1"></i>Bill details</h6>';
+            if (players.length === 0){ billDetail += '<p class="text-muted small mb-0">No players.</p>'; }
+            players.forEach(p => {
+                const lines = (p.items||[]).length
+                    ? p.items.map(it => '<div class="item-line"><span>'+escapeHtml(it.name)+' × '+it.qty+'</span><span>'+money(it.price*it.qty)+'</span></div>').join("")
+                    : '<div class="item-line text-muted"><span><i>No items yet</i></span><span>—</span></div>';
+                billDetail += '<div class="player-bill"><div class="d-flex justify-content-between"><b>🧑 '+escapeHtml(p.name)+'</b><span class="charge">'+money(playerSubtotal(p))+'</span></div>'+lines+'</div>';
+            });
+            billDetail += '<div class="d-flex justify-content-between mt-2"><span class="text-muted">Table charge (so far)</span><span>'+money(tableCharge(s))+'</span></div>'
+                       +  '<div class="d-flex justify-content-between"><span class="text-muted">Products / extras</span><span>'+money(prod)+'</span></div>'
+                       +  '<div class="d-flex justify-content-between fw-bold grand mt-1"><span>TOTAL (so far)</span><span data-grand="'+s.id+'" data-prod="'+prod+'">'+money(tableCharge(s)+prod)+'</span></div></div>';
+        }
+
+        return '<div class="session-card '+(s.isPaused?"paused":"")+'" data-id="'+s.id+'">'
+            + '<div class="session-head">'
+            +   '<div><h5 class="mb-1"><span class="status-dot"></span>'+escapeHtml(s.tableName||"Table")
+            +     ' <span class="badge '+typeBadge+' ms-1">'+escapeHtml(s.tableType||"")+'</span></h5>'
+            +     '<small class="text-muted">Started '+new Date(s.startTime).toLocaleString()+(s.openedBy?' · by '+escapeHtml(s.openedBy):"")+'</small></div>'
+            +   '<span class="badge badge-rate">'+curSym()+Number(s.hourlyRate||0).toFixed(0)+'/hr</span>'
+            + '</div>'
+            + '<div class="p-3">'
+            +   '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">'
+            +     '<div class="timer-display" data-timer="'+s.id+'">00:00:00</div>'
+            +     '<div class="text-end"><div class="text-muted small">Table · Extras · <b>Total</b></div>'
+            +       '<div><span class="text-muted" data-tablechg="'+s.id+'">Rs.0.00</span> · <span class="text-muted">'+money(prod)+'</span> · <span class="grand" data-grand="'+s.id+'" data-prod="'+prod+'">'+money(tableCharge(s)+prod)+'</span></div></div>'
+            +   '</div>'
+            +   '<div class="mb-3"><small class="text-muted d-block mb-1">Players ('+players.length+')</small>'+chips+'</div>'
+            +   '<div class="d-flex gap-2 flex-wrap">'
+            +     '<button class="btn btn-add" onclick="openAddPlayer(\''+s.id+'\')"><i class="fas fa-user-plus me-1"></i>Player</button>'
+            +     '<button class="btn btn-item" onclick="openQuickSale(\''+s.id+'\')"><i class="fas fa-shopping-basket me-1"></i>Add Item</button>'
+            +     (s.isPaused
+                  ? '<button class="btn btn-resume flex-grow-1" onclick="togglePause(\''+s.id+'\')"><i class="fas fa-play me-1"></i>Resume</button>'
+                  : '<button class="btn btn-pause flex-grow-1" onclick="togglePause(\''+s.id+'\')"><i class="fas fa-pause me-1"></i>Pause</button>')
+            +     '<button class="btn btn-end flex-grow-1" onclick="endSession(\''+s.id+'\')"><i class="fas fa-stop-circle me-1"></i>End &amp; Bill</button>'
+            +   '</div>'
+            +   '<button class="btn btn-sm btn-link text-muted p-0 mt-2" onclick="toggleBill(\''+s.id+'\')"><i class="fas '+(expanded?'fa-chevron-up':'fa-chevron-down')+' me-1"></i>'+(expanded?'Hide':'View')+' bill details'+(itemCount?(' ('+itemCount+' item'+(itemCount>1?'s':'')+')'):'')+'</button>'
+            +   billDetail
+            + '</div></div>';
     }).join("");
     tick();
 }
 
 function tick(){
-    sessions.forEach(function(s){
-        const tEl = document.querySelector('[data-timer="' + s.id + '"]');
-        const cEl = document.querySelector('[data-charge="' + s.id + '"]');
+    sessions.forEach(s => {
+        const tEl = document.querySelector('[data-timer="'+s.id+'"]');
+        const tcEl = document.querySelector('[data-tablechg="'+s.id+'"]');
         if (tEl) tEl.textContent = fmtDuration(elapsedMs(s));
-        if (cEl) cEl.textContent = money(tableCharge(s));
+        if (tcEl) tcEl.textContent = money(tableCharge(s));
+        document.querySelectorAll('[data-grand="'+s.id+'"]').forEach(el => {
+            el.textContent = money(tableCharge(s) + Number(el.dataset.prod||0));
+        });
     });
 }
 
 function togglePause(id){
     loadSessions();
-    const s = sessions.find(function(x){ return x.id === id; });
-    if (!s) return;
-    if (s.isPaused){
-        s.isPaused = false;
-        s.totalPausedDuration = (s.totalPausedDuration || 0) + (Date.now() - new Date(s.pausedTime).getTime());
-        s.pausedTime = null;
-    } else {
-        s.isPaused = true;
-        s.pausedTime = new Date().toISOString();
-    }
+    const s = sessions.find(x=>x.id===id); if(!s) return;
+    if (s.isPaused){ s.isPaused=false; s.totalPausedDuration=(s.totalPausedDuration||0)+(Date.now()-new Date(s.pausedTime).getTime()); s.pausedTime=null; }
+    else { s.isPaused=true; s.pausedTime=new Date().toISOString(); }
     saveSessions(); render();
 }
 
+function toggleBill(id){ expandedIds.has(id) ? expandedIds.delete(id) : expandedIds.add(id); render(); }
+
+/* ---------- ADD PLAYER mid-session ---------- */
+function openAddPlayer(id){
+    pendingSessionId = id;
+    const s = sessions.find(x=>x.id===id);
+    document.getElementById("apTable").textContent = s ? s.tableName : "—";
+    document.getElementById("apName").value = "";
+    document.getElementById("mAddPlayer").classList.add("show");
+    setTimeout(()=>document.getElementById("apName").focus(), 60);
+}
+function confirmAddPlayer(){
+    const name = document.getElementById("apName").value.trim();
+    if (!name){ toast("Enter a player name"); return; }
+    loadSessions();
+    const s = sessions.find(x=>x.id===pendingSessionId); if(!s){ closeModal("mAddPlayer"); return; }
+    if (!s.players) s.players = [];
+    s.players.push({ id:"P"+Date.now().toString(36), name:name, joinTime:new Date().toISOString(), items:[] });
+    saveSessions(); closeModal("mAddPlayer"); render();
+    toast("✓ "+name+" added to "+s.tableName);
+}
+
+/* ---------- QUICK SALE: charge item to an individual player ---------- */
+function openQuickSale(id){
+    pendingSessionId = id; pendingProduct = null;
+    const s = sessions.find(x=>x.id===id);
+    document.getElementById("qsTable").textContent = s ? s.tableName : "—";
+    const prods = loadProducts();
+    document.getElementById("qsProductGrid").innerHTML = prods.map(p => {
+        const safeName = escapeHtml(p.name).replace(/'/g, "&#39;");
+        return '<div class="col-4"><button class="prod-btn w-100" onclick="pickProduct(\''+p.id+'\',\''+safeName+'\','+p.price+',\''+(p.emoji||"📦")+'\')">'
+        + '<span class="emoji">'+(p.emoji||"📦")+'</span>'+escapeHtml(p.name)+'<br><small class="text-muted">'+curSym()+Number(p.price).toFixed(0)+'</small></button></div>';
+    }).join("");
+    showQsProducts();
+    document.getElementById("mQuickSale").classList.add("show");
+}
+function showQsProducts(){ document.getElementById("qsProducts").style.display=""; document.getElementById("qsPlayers").style.display="none"; }
+function pickProduct(id, name, price, emoji){
+    pendingProduct = { id, name, price, emoji };
+    loadSessions();
+    const s = sessions.find(x=>x.id===pendingSessionId);
+    if (!s || !s.players || s.players.length===0){ toast("Add at least one player first"); return; }
+    if (s.players.length === 1){ addProductToPlayer(0); return; }
+    document.getElementById("qsProdName").textContent = (emoji?emoji+" ":"") + name + " (" + curSym() + Number(price).toFixed(0) + ")";
+    document.getElementById("qsPlayerList").innerHTML = s.players.map((p,idx) =>
+        '<button class="btn btn-outline-primary w-100 mb-2 text-start" onclick="addProductToPlayer('+idx+')">'
+        + '<strong>🧑 '+escapeHtml(p.name)+'</strong><small class="text-muted d-block">Current bill: '+money(playerSubtotal(p))+'</small></button>'
+    ).join("");
+    document.getElementById("qsProducts").style.display="none";
+    document.getElementById("qsPlayers").style.display="";
+}
+function addProductToPlayer(playerIdx){
+    loadSessions();
+    const s = sessions.find(x=>x.id===pendingSessionId);
+    if (!s || !pendingProduct){ closeModal("mQuickSale"); return; }
+    const p = s.players[playerIdx];
+    if (!p){ closeModal("mQuickSale"); return; }
+    if (!p.items) p.items = [];
+    const existing = p.items.find(it => it.productId === pendingProduct.id);
+    if (existing){ existing.qty = Number(existing.qty||0)+1; }
+    else { p.items.push({ productId:pendingProduct.id, name:pendingProduct.name, price:pendingProduct.price, qty:1, time:new Date().toISOString() }); }
+    const pname = p.name;
+    saveSessions(); closeModal("mQuickSale"); render();
+    toast("✓ "+pendingProduct.name+" charged to "+pname);
+    pendingProduct = null;
+}
+
+/* ---------- END SESSION: save full bill (table + per-player items) ---------- */
 function endSession(id){
     loadSessions();
-    const s = sessions.find(function(x){ return x.id === id; });
-    if (!s) return;
-    const charge = tableCharge(s);
+    const s = sessions.find(x=>x.id===id); if(!s) return;
+    const tc = tableCharge(s), prod = productTotal(s), grand = tc + prod;
     const mins = Math.round(elapsedMs(s)/60000);
-    if (!confirm("End " + s.tableName + "?\nDuration: " + fmtDuration(elapsedMs(s)) + " (" + mins + " min)\nTable charge: " + money(charge))) return;
+    const itemsFlat = [];
+    (s.players||[]).forEach(p => (p.items||[]).forEach(it => itemsFlat.push({ player:p.name, name:it.name, price:it.price, qty:it.qty, lineTotal:it.price*it.qty })));
+    if (!confirm("End "+s.tableName+"?\nDuration: "+fmtDuration(elapsedMs(s))+" ("+mins+" min)\nTable: "+money(tc)+"  ·  Extras: "+money(prod)+"\nTOTAL: "+money(grand))) return;
 
-    // Save a bill record so it appears in Bills History
     let bills = [];
-    try { bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || []; } catch(e){ bills = []; }
+    try { bills = JSON.parse(localStorage.getItem(BILLS_KEY)||"[]") || []; } catch(e){ bills = []; }
     bills.unshift({
-        id: "BILL-" + Date.now().toString(36).toUpperCase(),
-        sessionId: s.id,
-        table: s.tableName,
-        tableType: s.tableType,
-        hourlyRate: s.hourlyRate,
-        players: (s.players || []).map(function(p){ return p.name; }),
-        startTime: s.startTime,
-        endTime: new Date().toISOString(),
-        durationMin: mins,
-        tableCharge: Math.round(charge*100)/100,
-        items: s.billItems || [],
-        total: Math.round(charge*100)/100,
-        openedBy: s.openedBy || "Staff",
-        status: "Paid"
+        id:"BILL-"+Date.now().toString(36).toUpperCase(), sessionId:s.id, table:s.tableName, tableType:s.tableType,
+        hourlyRate:s.hourlyRate, players:(s.players||[]).map(p=>p.name), startTime:s.startTime, endTime:new Date().toISOString(),
+        durationMin:mins, tableCharge:Math.round(tc*100)/100, productTotal:Math.round(prod*100)/100,
+        items:itemsFlat, total:Math.round(grand*100)/100, openedBy:s.openedBy||"Staff", status:"Paid"
     });
     localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
-
-    sessions = sessions.filter(function(x){ return x.id !== id; });
-    saveSessions();
-    render();
-    alert("✅ Session ended. " + s.tableName + " is now free.\nBill saved: " + money(charge));
+    sessions = sessions.filter(x=>x.id!==id);
+    saveSessions(); render();
+    alert("✅ Session ended — "+s.tableName+" is now free.\nBill saved (total: "+money(grand)+").");
 }
 
-function escapeHtml(v){
-    return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
-        return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
-    });
-}
-
+document.getElementById("apName").addEventListener("keydown", e => { if(e.key==="Enter") confirmAddPlayer(); });
 render();
 setInterval(tick, 1000);
 </script>
