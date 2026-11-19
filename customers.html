@@ -270,7 +270,7 @@ let customers = [
 let currentCustomerId = null;
 const CUSTOMERS_KEY = "cueclubCustomers";
 function saveCustomers(){ try { localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers)); } catch(e){} }
-try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) customers = _savedCust; } catch(e){}
+try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) customers = _savedCust; else saveCustomers(); } catch(e){ try { saveCustomers(); } catch(e2){} }
 let newCustomerModal;
 
 // ==========================================

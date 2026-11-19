@@ -137,6 +137,12 @@ function injectCustomerDatalist(){
     if (document.getElementById("customerNames")) return;
     let custs = [];
     try { custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || []; } catch(e){ custs = []; }
+    if (!custs.length) custs = [
+        {name:"Perera, K.", mobile:"071-9876543"},
+        {name:"Silva, S.", mobile:"077-1234567"},
+        {name:"Jayasuriya, M.", mobile:"076-5551234"},
+        {name:"Fernando, R.", mobile:"070-8889999"}
+    ];
     const dl = document.createElement("datalist");
     dl.id = "customerNames";
     custs.forEach(c => {
