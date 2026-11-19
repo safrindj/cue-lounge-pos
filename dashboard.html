@@ -311,12 +311,13 @@ function formatCurrency(amount) {
 
 </script>
 <!-- ===================================== -->
-<!-- 🚪 LOGOUT FUNCTION -->
+<!-- 🚪 LOGOUT FUNCTION (FIXED) -->
 <script>
 function logout() {
   if (confirm("Are you sure you want to logout?")) {
     sessionStorage.removeItem("currentStaff");
-    window.location.href = "login.html";
+    sessionStorage.removeItem("cueclubLoggedIn");
+    window.location.replace("login.html");
   }
 }
 </script>
