@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Active Sessions — CueClub Manager</title>
+    <title>Active Sessions — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -204,7 +204,7 @@ function render(){
     grid.innerHTML = sessions.map(s => {
         const typeBadge = String(s.tableType||"").toLowerCase().indexOf("pool")!==-1 ? "badge-type-pool" : "badge-type-snooker";
         const players = s.players || [];
-        const chips = players.map(p => '<span class="player-chip"><i class="fas fa-user me-1"></i>'+escapeHtml(p.name)+'</span>').join("") || '<span class="text-muted small">No players</span>';
+        const chips = players.map(p => '<span class="player-chip"><i class="fas fa-user me-1"></i>'+escapeHtml(p.name)+(p.isGuest?' <small class="text-muted">(Guest)</small>':'')+'</span>').join("") || '<span class="text-muted small">No players</span>';
         const prod = productTotal(s);
         const itemCount = players.reduce((t,p)=>t+(p.items||[]).reduce((a,it)=>a+Number(it.qty||0),0),0);
         const expanded = expandedIds.has(s.id);
@@ -289,16 +289,27 @@ function confirmAddPlayer(){
     let customer = null;
     try {
         const customers = window.loadCustomers ? window.loadCustomers() : [];
-        customer = customers.find(c => c && (String(c.name||"").toLowerCase() === value.toLowerCase() || String(c.mobile||"") === value)) || null;
+        const digits = value.replace(/\D/g, "");
+        customer = customers.find(c => c && (
+            String(c.name||"").trim().toLowerCase() === value.toLowerCase() ||
+            (digits !== "" && String(c.mobile||"").replace(/\D/g, "") === digits)
+        )) || null;
     } catch(e) { customer = null; }
-    const player = { id: "P"+Date.now(), name: customer && customer.name ? customer.name : value, items: [] };
-    if (customer && customer.mobile) player.mobile = customer.mobile;
+
+    let player;
+    if (customer) {
+        player = { id: "P"+Date.now(), name: customer.name, mobile: customer.mobile || "", customerId: customer.id || "", isGuest: false, items: [] };
+    } else {
+        // Name not in the customer database → added in Guest mode.
+        if (!window.confirm(value + " is not in the customer list.\nAdd this player as a Guest?")) { return; }
+        player = { id: "P"+Date.now(), name: value, mobile: "", customerId: "", isGuest: true, items: [] };
+    }
     s.players = s.players || [];
     s.players.push(player);
     closeModal("mAddPlayer");
     pendingSessionId = null;
     persistAndRender();
-    toast("Player added.");
+    toast(customer ? "Customer added." : "Guest player added.");
 }
 
 function openQuickSale(id){
@@ -366,26 +377,9 @@ function togglePause(id){
 function endSession(id){
     const s = getSession(id);
     if (!s) return;
-    if (!window.confirm("End the session for "+(s.tableName||"this table")+"?")) return;
-    const duration = elapsedMs(s);
-    const table = tableCharge(s);
-    const extras = productTotal(s);
-    const bill = {
-        id: "B"+Date.now(), tableName: s.tableName || "Table", tableType: s.tableType || "",
-        startTime: s.startTime, endTime: new Date().toISOString(), durationMs: duration,
-        hourlyRate: Number(s.hourlyRate||0), tableCharge: table, players: s.players || [],
-        productsTotal: extras, total: table + extras
-    };
-    try {
-        const bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || [];
-        bills.push(bill);
-        localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
-    } catch(e) { toast("Could not save the bill. Check available browser storage."); return; }
-    sessions = sessions.filter(item => String(item.id) !== String(s.id));
-    saveSessions();
-    expandedIds.delete(s.id);
-    render();
-    toast("Session ended. Total: "+money(bill.total));
+    if (!window.confirm("End the session for "+(s.tableName||"this table")+" and open the Billing screen?")) return;
+    // Hand the session to Billing.html so each player can be billed individually and messaged on WhatsApp.
+    window.location.href = "Billing.html?sessionId=" + encodeURIComponent(id);
 }
 
 document.getElementById("sessionsGrid").addEventListener("click", event => {
@@ -424,5 +418,6 @@ document.addEventListener("keydown", event => {
 render();
 setInterval(updateTimers, 1000);
 </script>
+<script src="sidebar.js"></script>
 </body>
 </html>

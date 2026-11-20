@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill & Payment — CueClub Manager</title>
+    <title>Bill & Payment — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -142,49 +142,51 @@ checkAuth();
 <script src="app-settings.js"></script>
 <script>
 // ✅ Google Apps Script Deployment URL
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
-
-'use strict';
+const GOOGLE_SCRIPT_URL = window.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+"use strict";
+const BILLS_KEY = "cueclubBills";
+const ACTIVE_KEY = "cueclubActiveSessions";
 
 const bill = {
-    billNo: 'BILL-0001',
-    sessionId: '',
-    tableName: '',
-    durationMin: 0,
-    hourlyRate: 0,
-    startTime: new Date(),
-    endTime: new Date(),
-    players: [],
-    productTotal: 0,
-    productList: '',
-    subtotal: 0,
-    discountPercent: 0,
-    discountAmount: 0,
-    grandTotal: 0,
-    customerId: '',
-    customerName: 'Guest Customer',
-    customerMobile: '',
-    paidAmount: 0,
-    paymentMethod: 'cash',
-    notes: '',
-    playerSplit: []
+    billNo: 'BILL-0001', sessionId: '', tableName: '', tableType: '',
+    durationMin: 0, hourlyRate: 0, startTime: new Date(), endTime: new Date(),
+    players: [], productTotal: 0, productList: '', subtotal: 0,
+    discountPercent: 0, discountAmount: 0, grandTotal: 0,
+    customerId: '', customerName: 'Guest Customer', customerMobile: '',
+    paidAmount: 0, paymentMethod: 'cash', notes: '', playerSplit: []
 };
+let sourceSession = null;
 
 const money = amount => 'Rs. ' + Number(amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const byId = id => document.getElementById(id);
 
-function formatDate(date) {
-    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
-}
-function formatTime(date) {
-    return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-}
+function formatDate(date) { return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date); }
+function formatTime(date) { return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date); }
 function formatTimeRange(start, end) {
     const mins = Math.max(0, Math.round((end - start) / 60000));
-    const hours = Math.floor(mins / 60);
-    const remainder = mins % 60;
-    const duration = hours ? `${hours}h ${remainder}m` : `${remainder}m`;
-    return `🕒 ${duration} • ${formatTime(start)} - ${formatTime(end)}`;
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return (h ? `${h}h ${m}m` : `${m}m`) + ` • ${formatTime(start)} - ${formatTime(end)}`;
+}
+function elapsedMinutes(s) {
+    const start = new Date(s.startTime).getTime();
+    const end = s.isPaused ? new Date(s.pausedTime).getTime() : Date.now();
+    const paused = Number(s.totalPausedDuration || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+    return Math.max(0, (end - start - (Number.isFinite(paused) ? paused : 0))) / 60000;
+}
+function playerItemsTotal(p) { return (p.items || []).reduce((t, it) => t + Number(it.price || 0) * Number(it.qty || 0), 0); }
+
+function findCustomerByName(name) {
+    let custs = [];
+    try { custs = window.loadCustomers ? window.loadCustomers() : []; } catch (e) { custs = []; }
+    const norm = String(name || "").trim().toLowerCase();
+    return custs.find(c => c && String(c.name || "").trim().toLowerCase() === norm) || null;
+}
+function normalizeLK(raw) {
+    let d = String(raw || "").replace(/\D/g, "");
+    if (d.startsWith("0094")) d = "94" + d.slice(4);
+    else if (d.startsWith("0")) d = "94" + d.slice(1);
+    return d;
 }
 
 function renderBill() {
@@ -198,9 +200,8 @@ function renderBill() {
     byId('billNumber').textContent = bill.billNo;
     byId('sessionTable').textContent = bill.tableName || '—';
     byId('sessionTime').textContent = bill.durationMin > 0 ? formatTimeRange(bill.startTime, bill.endTime) : '—';
-    byId('sessionPlayers').textContent = bill.players.length > 0 ? `👥 ${bill.players.length} ${bill.players.length === 1 ? 'Player' : 'Players'}` : '';
+    byId('sessionPlayers').textContent = bill.players.length > 0 ? `${bill.players.length} ${bill.players.length === 1 ? 'Player' : 'Players'}` : '';
     byId('billDate').textContent = formatDate(new Date());
-    byId('customerMobile').value = bill.customerMobile;
     applyDiscount();
 }
 
@@ -225,52 +226,224 @@ function calculateBalance() {
     if (rawPaid !== '' && paid !== parsedPaid) input.value = paid.toFixed(2);
     bill.paidAmount = paid;
     bill.balance = Math.round((bill.grandTotal - paid) * 100) / 100;
-    const balanceEl = byId('balance');
-    const label = byId('balanceLabel');
+    const balanceEl = byId('balance'), label = byId('balanceLabel');
     if (bill.balance > 0) {
-        label.textContent = 'Balance due';
-        balanceEl.textContent = `${money(bill.balance)} (DUE)`;
-        balanceEl.className = 'fw-bold balance-warning';
+        label.textContent = 'Balance due'; balanceEl.textContent = `${money(bill.balance)} (DUE)`; balanceEl.className = 'fw-bold balance-warning';
     } else if (bill.balance < 0) {
-        label.textContent = 'Change due';
-        balanceEl.textContent = money(Math.abs(bill.balance));
-        balanceEl.className = 'fw-bold text-primary';
+        label.textContent = 'Change due'; balanceEl.textContent = money(Math.abs(bill.balance)); balanceEl.className = 'fw-bold text-primary';
     } else {
-        label.textContent = 'Balance';
-        balanceEl.textContent = money(0);
-        balanceEl.className = 'fw-bold text-success';
+        label.textContent = 'Balance'; balanceEl.textContent = money(0); balanceEl.className = 'fw-bold text-success';
     }
 }
 
 function lookupCustomer(value) {
     const normalized = String(value || '').replace(/\D/g, '');
     if (!normalized) {
-        bill.customerName = 'Guest Customer';
-        bill.customerMobile = '';
+        bill.customerName = 'Guest Customer'; bill.customerMobile = '';
         byId('customerName').textContent = 'No customer selected — guest discount applies.';
         byId('loyaltyBadge').textContent = 'Guest';
-        byId('discountLevel').value = '0';
-        applyDiscount();
-        return;
+        byId('discountLevel').value = '0'; applyDiscount(); return;
     }
-    
     let matched = null;
     try {
         const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
-        matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized);
-    } catch(e){ matched = null; }
-    
+        matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized) || null;
+    } catch (e) { matched = null; }
     if (matched) {
+        bill.customerId = matched.id || '';
         bill.customerName = matched.name;
         bill.customerMobile = value.trim();
-        if (matched.manualDiscount != null) {
+        if (matched.manualDiscount != null && matched.manualDiscount !== '') {
             byId('customerName').textContent = `Customer: ${matched.name} • Manual discount ${matched.manualDiscount}% (admin-set)`;
             byId('loyaltyBadge').textContent = `Manual ${matched.manualDiscount}%`;
             byId('discountLevel').value = String(matched.manualDiscount);
         } else {
             byId('customerName').textContent = `Customer: ${matched.name}`;
-            byId('loyaltyBadge').textContent = 'Guest';
+            byId('loyaltyBadge').textContent = 'Member';
         }
-        applyDiscount();
     } else {
-        bill
+        bill.customerName = 'Guest Customer'; bill.customerMobile = value.trim();
+        byId('customerName').textContent = 'Not in customer list — billed as Guest.';
+        byId('loyaltyBadge').textContent = 'Guest';
+        byId('discountLevel').value = '0';
+    }
+    applyDiscount();
+}
+
+// ---------- Per-player individual bills ----------
+function renderSplit() {
+    const listEl = byId('playerSplitList');
+    const n = bill.players.length;
+    byId('splitSection').style.display = n ? 'block' : 'none';
+    if (!n) { bill.playerSplit = []; return; }
+    const charge = bill.durationMin / 60 * bill.hourlyRate;
+    const share = charge / n;
+    const factor = 1 - bill.discountPercent / 100;
+    bill.playerSplit = bill.players.map((p, idx) => {
+        const itemsTotal = playerItemsTotal(p);
+        const gross = share + itemsTotal;
+        const due = Math.max(0, Math.round(gross * factor * 100) / 100);
+        const cust = !p.isGuest ? (findCustomerByName(p.name) || {}) : {};
+        return {
+            index: idx, name: p.name, mobile: p.mobile || cust.mobile || "", isGuest: !!p.isGuest,
+            items: (p.items || []).slice(), tableShare: share, itemsTotal: itemsTotal, gross: gross, due: due
+        };
+    });
+    listEl.innerHTML = bill.playerSplit.map(row => {
+        const lines = row.items.length
+            ? row.items.map(it => `<div class="item-line"><span>${escapeHtml(it.name)} × ${Number(it.qty || 1)}</span><span>${money(Number(it.price || 0) * Number(it.qty || 1))}</span></div>`).join("")
+            : '<div class="item-line text-muted"><span>No extra items</span><span>—</span></div>';
+        const badge = row.isGuest
+            ? '<span class="badge bg-secondary">Guest</span>'
+            : '<span class="badge bg-success">Member</span>';
+        return `<div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><b>${escapeHtml(row.name)}</b> ${badge}</div>
+                <div class="fw-bold text-primary">${money(row.due)}</div>
+            </div>
+            <div class="small mt-1">${lines}
+                <div class="item-line"><span>Table share (${(bill.durationMin / 60).toFixed(2)} hrs)</span><span>${money(row.tableShare)}</span></div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-sm btn-success" onclick="whatsappPlayer(${row.index})"><i class="fab fa-whatsapp me-1"></i> Send Bill via WhatsApp</button>
+                <span class="small text-muted align-self-center">${row.mobile ? escapeHtml(row.mobile) : 'No number saved'}</span>
+            </div>
+        </div>`;
+    }).join("");
+}
+
+function escapeHtml(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function buildPlayerMessage(row) {
+    const lines = [
+        "🏒 PYRAMID SNOOKER PALOR",
+        `Bill ${bill.billNo} • ${bill.tableName || "Table"}`,
+        `Player: ${row.name}${row.isGuest ? " (Guest)" : " (Member)"}`,
+        `🕒 ${formatTimeRange(bill.startTime, bill.endTime)}`,
+        "",
+        "Items:"
+    ];
+    row.items.forEach(it => lines.push(`• ${it.name} × ${Number(it.qty || 1)} — ${money(Number(it.price || 0) * Number(it.qty || 1))}`));
+    lines.push(`• Table share — ${money(row.tableShare)}`);
+    if (bill.discountPercent > 0) lines.push(`Discount −${bill.discountPercent}%`);
+    lines.push("", `💳 TOTAL DUE: ${money(row.due)}`, "Thank you! 🙏");
+    return lines.join("\n");
+}
+
+function whatsappPlayer(idx) {
+    const row = bill.playerSplit[idx];
+    if (!row) return;
+    let phone = row.mobile;
+    if (!phone) {
+        const cust = findCustomerByName(row.name);
+        phone = cust && cust.mobile ? cust.mobile : "";
+    }
+    if (!phone) phone = prompt(`Enter WhatsApp number for ${row.name} (e.g. 0712345678):`);
+    if (!phone) return;
+    window.open("https://wa.me/" + normalizeLK(phone) + "?text=" + encodeURIComponent(buildPlayerMessage(row)), "_blank");
+}
+
+function buildOverallMessage() {
+    const lines = [
+        "🏒 PYRAMID SNOOKER PALOR",
+        `Bill ${bill.billNo} • ${bill.tableName || "Table"}`,
+        `🕒 ${formatTimeRange(bill.startTime, bill.endTime)}`,
+        `Players: ${bill.players.map(p => p.name + (p.isGuest ? " (Guest)" : "")).join(", ")}`,
+        "",
+        `Table charge — ${money(bill.subtotal - bill.productTotal)}`,
+        `Products — ${money(bill.productTotal)}`
+    ];
+    if (bill.discountPercent > 0) lines.push(`Discount −${bill.discountPercent}% (${money(bill.discountAmount)})`);
+    lines.push("", `💰 GRAND TOTAL: ${money(bill.grandTotal)}`, "Thank you! 🙏");
+    return lines.join("\n");
+}
+
+function shareOverallBill() {
+    let phone = byId('customerMobile').value.trim();
+    if (!phone) phone = prompt("Enter customer WhatsApp number (e.g. 0712345678):");
+    if (!phone) return;
+    window.open("https://wa.me/" + normalizeLK(phone) + "?text=" + encodeURIComponent(buildOverallMessage()), "_blank");
+}
+
+// ---------- Save / payment ----------
+function completeBill() {
+    if (!sourceSession) { alert("No active session loaded. Start a session first."); return; }
+    bill.paidAmount = Number(byId('paidAmount').value) || 0;
+    bill.paymentMethod = (document.querySelector('.payment-option.selected') || {}).dataset || { method: 'cash' };
+    bill.paymentMethod = bill.paymentMethod.method || 'cash';
+    bill.notes = byId('paymentNotes').value.trim();
+    bill.balance = Math.round((bill.grandTotal - bill.paidAmount) * 100) / 100;
+    bill.billNo = "BILL-" + Date.now().toString(36).toUpperCase();
+    bill.savedAt = new Date().toISOString();
+    bill.status = bill.balance <= 0 ? 'paid' : (bill.paidAmount > 0 ? 'partial' : 'credit');
+    const record = Object.assign({}, bill, {
+        players: bill.players.map(p => ({ name: p.name, mobile: p.mobile || "", isGuest: !!p.isGuest, items: p.items || [] }))
+    });
+    try {
+        const bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || [];
+        bills.push(record);
+        localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
+    } catch (e) { alert("Could not save the bill. Browser storage may be full."); return; }
+    try {
+        const act = JSON.parse(localStorage.getItem(ACTIVE_KEY) || "[]") || [];
+        localStorage.setItem(ACTIVE_KEY, JSON.stringify(act.filter(s => s.id !== bill.sessionId)));
+    } catch (e) {}
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "saveBill", bill: record }) }).catch(() => {});
+    }
+    const msg = byId('savedMessage');
+    msg.textContent = "Bill saved successfully. Opening Bills History…";
+    msg.classList.remove('d-none');
+    setTimeout(() => { window.location.href = "bills-history.html"; }, 1000);
+}
+
+// ---------- Wire up ----------
+document.querySelectorAll('.payment-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+        document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+    });
+});
+byId('customerMobile').addEventListener('input', e => lookupCustomer(e.target.value));
+byId('discountLevel').addEventListener('change', applyDiscount);
+byId('paidAmount').addEventListener('input', calculateBalance);
+byId('completeButton').addEventListener('click', completeBill);
+byId('printButton').addEventListener('click', () => window.print());
+byId('shareButton').addEventListener('click', shareOverallBill);
+
+(function init() {
+    const id = new URLSearchParams(location.search).get("sessionId");
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(ACTIVE_KEY) || "[]") || []; } catch (e) { list = []; }
+    sourceSession = list.find(s => s && s.id === id) || null;
+    if (!sourceSession) {
+        byId('completeButton').disabled = true;
+        byId('shareButton').disabled = true;
+        byId('sessionTable').textContent = 'No active session';
+        byId('sessionTime').textContent = '';
+        byId('sessionPlayers').textContent = '';
+        const note = document.createElement('div');
+        note.className = 'alert alert-warning';
+        note.textContent = 'No active session matched this bill. Open Active Sessions → End Session to bill a table.';
+        document.querySelector('main').prepend(note);
+        return;
+    }
+    const s = sourceSession;
+    bill.sessionId = s.id;
+    bill.tableName = (s.tableName || "Table") + (s.tableType ? " — " + s.tableType : "");
+    bill.tableType = s.tableType || "";
+    bill.hourlyRate = Number(s.hourlyRate || 0);
+    bill.startTime = new Date(s.startTime);
+    bill.endTime = new Date();
+    bill.durationMin = elapsedMinutes(s);
+    bill.players = (s.players || []).map(p => Object.assign({ items: [] }, p, { items: Array.isArray(p.items) ? p.items : [] }));
+    bill.productTotal = bill.players.reduce((t, p) => t + playerItemsTotal(p), 0);
+    bill.productList = bill.players.flatMap(p => (p.items || []).map(it => `${it.name}${Number(it.qty || 1) > 1 ? " x" + it.qty : ""}`)).join(", ") || "";
+    const reg = bill.players.find(p => !p.isGuest && p.mobile);
+    renderBill();
+    if (reg && reg.mobile) { byId('customerMobile').value = reg.mobile; lookupCustomer(reg.mobile); }
+})();
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

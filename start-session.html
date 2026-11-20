@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Start Session — CueClub Manager</title>
+    <title>Start Session — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -77,6 +77,7 @@ checkAuth();
         <button class="btn btn-add mt-2" onclick="addPlayerRow()">
             <i class="fas fa-user-plus me-2"></i> Add Another Player
         </button>
+        <div class="small text-muted mt-2"><i class="fas fa-info-circle me-1"></i> Recognized customers are added from the customer list; names not found there are saved as <strong>Guests</strong>.</div>
     </div>
 
     <!-- Step 3: Start -->
@@ -223,6 +224,8 @@ function addPlayerRow() {
         </button>
     `;
     container.appendChild(row);
+    const nameInput = row.querySelector(".player-name");
+    if (window.attachAC && nameInput) window.attachAC(nameInput);
     updatePlayerCount();
 }
 
@@ -241,24 +244,44 @@ function updatePlayerCount() {
     document.getElementById("selPlayers").textContent = count;
 }
 
+// Match a typed name/mobile against the customer database; null means treat as Guest.
+function findCustomerFor(value) {
+    const v = String(value || "").trim();
+    if (!v) return null;
+    const norm = v.toLowerCase().replace(/\s+/g, " ");
+    let custs = [];
+    try { custs = window.loadCustomers ? window.loadCustomers() : []; } catch (e) { custs = []; }
+    return custs.find(function (c) {
+        if (!c) return false;
+        const nameOk = String(c.name || "").trim().toLowerCase() === norm;
+        const digits = String(c.mobile || "").replace(/\D/g, "");
+        const mobileOk = digits !== "" && digits === v.replace(/\D/g, "");
+        return nameOk || mobileOk;
+    }) || null;
+}
+
 // Start Session
 function startSession() {
     if (!selectedTable) {
-        alert("⚠️ Please select a table first");
+        alert("\u26a0\ufe0f Please select a table first");
         return;
     }
-    
-    // Collect player names
-    const players = [];
-    let hasName = false;
-    document.querySelectorAll('.player-name').forEach(input => {
-        const val = input.value.trim();
-        if (val) hasName = true;
-        players.push(val || ("Guest " + (players.length + 1)));
-    });
-    if (!hasName) { alert("⚠️ Please enter at least one player name"); return; }
 
-    // Check for duplicate players across active sessions
+    // Collect players: registered when found in the customer database, otherwise Guest mode.
+    const rawInputs = Array.prototype.slice.call(document.querySelectorAll('.player-name'));
+    let hasName = false;
+    const playerEntries = rawInputs.map(function (input, idx) {
+        const raw = input.value.trim();
+        if (raw) hasName = true;
+        const cust = findCustomerFor(raw);
+        if (cust) {
+            return { name: cust.name, mobile: cust.mobile || "", customerId: cust.id || "", isGuest: false };
+        }
+        return { name: raw || ("Guest " + (idx + 1)), mobile: "", customerId: "", isGuest: true };
+    });
+    if (!hasName) { alert("\u26a0\ufe0f Please enter at least one player name"); return; }
+
+    // Check for duplicate registered players across active sessions
     const activeNow = loadActiveSessions();
     const normalizePlayerName = name => String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
     const activeNames = [];
@@ -268,30 +291,22 @@ function startSession() {
             if (p && typeof p === "object" && p.name) activeNames.push(normalizePlayerName(p.name));
         });
     });
-    const playerEntries = [];
-    document.querySelectorAll('.player-name').forEach(input => {
-        const name = input.value.trim();
-        playerEntries.push({ name, isGuest: !name });
-    });
     for (const player of playerEntries) {
         if (player.isGuest) continue;
         const key = normalizePlayerName(player.name);
         if (activeNames.indexOf(key) !== -1) {
-            alert("⚠️ " + player.name + " is already playing on another table.");
+            alert("\u26a0\ufe0f " + player.name + " is already playing on another table.");
             return;
         }
     }
-    // Use a snapshot of the names that passed validation when building the session.
-    const validatedPlayers = playerEntries.map((player, i) => player.name || ("Guest " + (i + 1)));
-
     // Check table already active
     if (activeNow.some(s => s.tableId === selectedTable.id)) {
-        alert("⚠️ This table already has a running session.");
+        alert("\u26a0\ufe0f This table already has a running session.");
         return;
     }
-
     const now = new Date();
     const sessionId = "SES-" + now.getTime().toString(36).toUpperCase();
+    const guestCount = playerEntries.filter(p => p.isGuest).length;
     const sessionData = {
         id: sessionId,
         tableId: selectedTable.id,
@@ -300,24 +315,26 @@ function startSession() {
         hourlyRate: selectedTable.rate,
         startTime: now.toISOString(),
         openedBy: currentStaffName(),
-        players: validatedPlayers.map((name, i) => ({
-            id: "P" + (i+1) + "_" + now.getTime().toString(36),
-            name: name,
+        players: playerEntries.map((p, i) => ({
+            id: "P" + (i + 1) + "_" + now.getTime().toString(36),
+            name: p.name,
+            mobile: p.mobile || "",
+            customerId: p.customerId || "",
+            isGuest: !!p.isGuest,
             joinTime: now.toISOString(),
             items: []
         })),
         billItems: []
     };
-    
+
     // Save locally before syncing; local storage is the source of truth for active sessions.
     activeNow.push(sessionData);
     try {
         localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(activeNow));
     } catch (e) {
-        alert("⚠️ Could not save the session on this device. Check available browser storage and try again.");
+        alert("\u26a0\ufe0f Could not save the session on this device. Check available browser storage and try again.");
         return;
     }
-
     // Sync to Google Sheets
     if (GOOGLE_SCRIPT_URL) {
         fetch(GOOGLE_SCRIPT_URL, {
@@ -327,8 +344,9 @@ function startSession() {
             body: JSON.stringify({ action: "startSession", session: sessionData })
         }).catch(() => {});
     }
-    
-    alert("✅ Session started!\nTable: " + selectedTable.name + "\nRate: Rs. " + selectedTable.rate + "/hr");
+
+    let guestNote = guestCount ? ("\nGuest player(s): " + guestCount) : "";
+    alert("\u2705 Session started!\nTable: " + selectedTable.name + "\nRate: Rs. " + selectedTable.rate + "/hr" + guestNote);
     window.location.href = "active-session.html";
 }
 </script>

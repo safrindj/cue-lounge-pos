@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expenses — CueClub Manager</title>
+    <title>Expenses — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -137,7 +137,7 @@ checkAuth();
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="saveExpense()">Save</button>
+                <button type="button" class="btn btn-success" onclick="saveExpenseFromModal()">Save</button>
             </div>
         </div>
     </div>
@@ -365,6 +365,20 @@ function renderTotals() {
     document.getElementById("monthTotal").textContent = `Rs. ${monthTotal.toLocaleString()}`;
 }
 
+// Helpers
+function escapeHTML(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function formatDateShort(d) {
+    const date = new Date(d);
+    return date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+function toInputDate(d) {
+    const date = new Date(d);
+    const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, "0"), day = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
 // MODAL ACTIONS
 function openAddModal() {
     document.getElementById("modalTitle").textContent = "Add Expense";
@@ -380,11 +394,66 @@ function openAddModal() {
 function editExpense(id) {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
-
     document.getElementById("modalTitle").textContent = "Edit Expense";
     document.getElementById("editExpenseId").value = expense.id;
-    document.getElementById("expDate").value = toInputDate(new Date(expense.date));
+    document.getElementById("expDate").value = toInputDate(expense.date);
     document.getElementById("expDesc").value = expense.desc;
     document.getElementById("expCategory").value = expense.category;
     document.getElementById("expAmount").value = expense.amount;
-    document.getElementById
+    document.getElementById("expNotes").value = expense.notes || "";
+    expenseModal.show();
+}
+
+function saveExpenseFromModal() {
+    const id = document.getElementById("editExpenseId").value;
+    const desc = document.getElementById("expDesc").value.trim();
+    const category = document.getElementById("expCategory").value;
+    const amount = Number(document.getElementById("expAmount").value);
+    const notes = document.getElementById("expNotes").value.trim();
+    const dateVal = document.getElementById("expDate").value;
+    if (!desc || !Number.isFinite(amount) || amount <= 0 || !dateVal) {
+        alert("Please fill description, a valid positive amount and a date.");
+        return;
+    }
+    const [y, m, d] = dateVal.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    if (id) {
+        const idx = expenses.findIndex(item => item.id === id);
+        if (idx !== -1) expenses[idx] = Object.assign({}, expenses[idx], { desc, category, amount, notes, date });
+    } else {
+        expenses.push({ id: "EXP-" + Date.now().toString(36), desc, category, amount, notes, date });
+    }
+    saveExpenses();
+    expenseModal.hide();
+    renderCategoryBreakdown();
+    renderTransactions();
+}
+
+function openDeleteModal(id) {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense) return;
+    deleteTargetId = id;
+    document.getElementById("deleteInfo").textContent = `${expense.desc} — Rs. ${Number(expense.amount).toLocaleString()}`;
+    deleteModal.show();
+}
+
+function confirmDelete() {
+    if (deleteTargetId === null) return;
+    expenses = expenses.filter(item => item.id !== deleteTargetId);
+    deleteTargetId = null;
+    saveExpenses();
+    deleteModal.hide();
+    renderCategoryBreakdown();
+    renderTransactions();
+}
+
+document.getElementById("transactionList").addEventListener("click", event => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    if (btn.dataset.action === "edit") editExpense(btn.dataset.id);
+    if (btn.dataset.action === "delete") openDeleteModal(btn.dataset.id);
+});
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

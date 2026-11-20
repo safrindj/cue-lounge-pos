@@ -1,7 +1,9 @@
 // app-settings.js — shared settings read by every page (saved from Settings page)
+// Google Apps Script deployment URL — used by every page that syncs data to the sheet.
+window.GOOGLE_SCRIPT_URL = window.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 (function () {
   var DEFAULTS = {
-    bizName: "Cue Lounge POS",
+    bizName: "PYRAMID SNOOKER PALOR MANAGEMENT",
     bizAddress: "",
     bizPhone: "",
     bizEmail: "",

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Management — PYRAMID SNOOKER PALOR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a2c42; --secondary: #2d4263; --accent: #e8b832;
+            --success: #28a745; --danger: #dc3545; --admin: #9333ea; --staff: #2563eb;
+        }
+        body { background: #f0f2f5; min-height: 100vh; padding-bottom: 40px; }
+        .header-bar { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 14px 20px; position: sticky; top: 0; z-index: 100; }
+        .back-link { color: white; text-decoration: none; margin-right: 12px; }
+        .back-link:hover { color: var(--accent); }
+        .staff-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.05); }
+        .staff-role { border-radius: 12px; padding: 2px 10px; font-size: .75rem; font-weight: 600; color: #fff; }
+        .role-admin { background: var(--admin); }
+        .role-staff { background: var(--staff); }
+        .perm-badge { display: inline-block; background: #eef2f7; color: var(--primary); border-radius: 10px; padding: 2px 9px; font-size: .72rem; margin: 2px 4px 0 0; }
+        .stat-box { background: #fff; border-radius: 10px; padding: 14px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.05); }
+        .stat-number { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .search-box { position: relative; }
+        .search-box input { padding-left: 38px; border-radius: 8px; border: 1px solid #ddd; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; }
+        .deploy-note { font-size: .78rem; }
+    </style>
+</head>
+<body>
+<!-- 🔐 PAGE PROTECTION -->
+<script>
+function checkAuth() {
+  const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
+  if (!isLoggedIn) { window.location.replace("login.html"); }
+}
+checkAuth();
+</script>
+
+<!-- Header -->
+<div class="header-bar d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+        <a href="dashboard.html" class="back-link" aria-label="Back to dashboard"><i class="fas fa-arrow-left"></i></a>
+        <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i> Staff Management</h5>
+    </div>
+    <button class="btn btn-sm btn-light" onclick="openStaffModal()"><i class="fas fa-user-plus me-1"></i> Add Staff</button>
+</div>
+
+<div class="container px-3 mt-4">
+    <div class="row g-2 mb-3">
+        <div class="col-4">
+            <div class="stat-box"><div class="stat-number" id="statTotal">0</div><div class="small text-muted">Total Staff</div></div>
+        </div>
+        <div class="col-4">
+            <div class="stat-box"><div class="stat-number" id="statAdmins">0</div><div class="small text-muted">Admins</div></div>
+        </div>
+        <div class="col-4">
+            <div class="stat-box"><div class="stat-number" id="statClerks">0</div><div class="small text-muted">Staff</div></div>
+        </div>
+    </div>
+
+    <div class="search-box mb-3">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" class="form-control" placeholder="Search by name or mobile..." onkeyup="renderStaffList()">
+    </div>
+
+    <div class="alert alert-light deploy-note py-2 mb-3">
+        <i class="fas fa-cloud-arrow-up me-1 text-primary"></i> Staff records sync to the Google Sheets deployment:
+        <span class="text-break" id="deployUrlLabel">—</span>
+    </div>
+
+    <div id="staffList"></div>
+</div>
+
+<!-- ADD / EDIT STAFF MODAL -->
+<div class="modal fade" id="staffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="staffForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Add Staff Member</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editStaffId">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" id="staffName" class="form-control" required maxlength="80" placeholder="e.g. Silva, M.">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mobile Number *</label>
+                        <input type="tel" id="staffMobile" class="form-control" required maxlength="24" placeholder="07X-XXXXXXX">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Login PIN (4 digits) *</label>
+                        <input type="password" id="staffPin" class="form-control" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="4 digits" autocomplete="new-password">
+                        <div class="form-text">Used on the login screen to sign in.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role / Access Level *</label>
+                        <select id="staffRole" class="form-select">
+                            <option value="admin">🔑 Administrator — Full Access</option>
+                            <option value="staff">👤 Staff — Limited Access</option>
+                        </select>
+                    </div>
+                    <div id="permissionsSection" class="bg-light p-3 rounded">
+                        <label class="form-label d-block">Permissions</label>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permSell" checked><label class="form-check-label" for="permSell">Create Bills &amp; Sales</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permView" checked><label class="form-check-label" for="permView">View Reports &amp; History</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permCustomer"><label class="form-check-label" for="permCustomer">Manage Customers</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permInventory"><label class="form-check-label" for="permInventory">Manage Products &amp; Stock</label></div>
+                        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permExpenses"><label class="form-check-label" for="permExpenses">Record Expenses</label></div>
+                    </div>
+                    <div class="text-danger small mt-2 d-none" id="formError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Staff</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ✅ Google Apps Script Deployment URL — staff records are synced here.
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+window.GOOGLE_SCRIPT_URL = GOOGLE_SCRIPT_URL;
+
+const SETTINGS_KEY = "cueclubSettings";
+const permissionFields = ["permSell", "permView", "permCustomer", "permInventory", "permExpenses"];
+const permissionLabels = {
+    permSell: "Create Bills & Sales",
+    permView: "View Reports & History",
+    permCustomer: "Manage Customers",
+    permInventory: "Manage Products & Stock",
+    permExpenses: "Record Expenses"
+};
+
+let staff = [];
+let staffModal;
+
+function escapeHtml(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+}
+
+function readSettings() {
+    try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+}
+
+function normalizeStaff(value) {
+    if (!Array.isArray(value)) return [];
+    return value.filter(function (p) {
+        return p && typeof p === "object" && typeof p.name === "string" && typeof p.mobile === "string" &&
+            typeof p.pin === "string" && /^[0-9]{4}$/.test(p.pin) && ["admin", "staff"].includes(p.role);
+    }).map(function (p) {
+        return {
+            id: String(p.id || createId()),
+            name: p.name.slice(0, 80),
+            mobile: p.mobile.slice(0, 24),
+            pin: p.pin,
+            role: p.role,
+            permissions: Array.isArray(p.permissions) ? permissionFields.filter(function (f) { return p.permissions.includes(f); }) : []
+        };
+    });
+}
+
+function createId() {
+    return (window.crypto && typeof window.crypto.randomUUID === "function")
+        ? window.crypto.randomUUID()
+        : "st-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+}
+
+function loadStaff() {
+    const data = readSettings();
+    staff = normalizeStaff(data.staff);
+}
+
+function persistStaff() {
+    const data = readSettings();
+    data.staff = staff;
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+    } catch (e) {
+        alert("Could not save staff in this browser. Storage may be full.");
+        return false;
+    }
+    // Sync to the Google Apps Script deployment (no-cors fire-and-forget).
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "syncStaff", staff: staff, syncedAt: new Date().toISOString() })
+        }).catch(function () {});
+    }
+    return true;
+}
+
+function renderStaffList() {
+    const query = (document.getElementById("searchInput").value || "").trim().toLowerCase();
+    const list = document.getElementById("staffList");
+    list.innerHTML = "";
+    const filtered = staff.filter(function (p) {
+        return !query || p.name.toLowerCase().includes(query) || p.mobile.replace(/\D/g, "").includes(query.replace(/\D/g, ""));
+    });
+    document.getElementById("statTotal").textContent = staff.length;
+    document.getElementById("statAdmins").textContent = staff.filter(function (p) { return p.role === "admin"; }).length;
+    document.getElementById("statClerks").textContent = staff.filter(function (p) { return p.role !== "admin"; }).length;
+
+    if (!filtered.length) {
+        list.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-user-shield fa-2x mb-2 d-block"></i>' +
+            (staff.length ? "No staff match your search." : "No staff members yet. Click “Add Staff” to create the first login.") + "</div>";
+        return;
+    }
+
+    filtered.forEach(function (p) {
+        const card = document.createElement("div");
+        card.className = "staff-card";
+        const permBadges = (p.role === "staff" && p.permissions.length)
+            ? p.permissions.map(function (f) { return '<span class="perm-badge">' + escapeHtml(permissionLabels[f] || f) + "</span>"; }).join("")
+            : '<span class="small text-muted">Full access</span>';
+        card.innerHTML =
+            '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                    '<div><strong>' + escapeHtml(p.name) + '</strong>' +
+                    '<span class="staff-role ms-2 ' + (p.role === "admin" ? "role-admin" : "role-staff") + '">' +
+                    (p.role === "admin" ? "Administrator" : "Staff") + "</span></div>" +
+                    '<div class="small text-muted mt-1"><i class="fas fa-mobile-alt me-1"></i>' + escapeHtml(p.mobile) +
+                    ' &nbsp; <i class="fas fa-key me-1"></i>PIN ••••</div>' +
+                    '<div class="mt-2">' + permBadges + "</div>" +
+                "</div>" +
+                '<div class="text-nowrap">' +
+                    '<button class="btn btn-sm btn-outline-primary me-1" onclick="openStaffModal(\'' + p.id + '\')"><i class="fas fa-edit"></i></button>' +
+                    '<button class="btn btn-sm btn-outline-danger" onclick="deleteStaff(\'' + p.id + '\')"><i class="fas fa-trash-alt"></i></button>' +
+                "</div>" +
+            "</div>";
+        list.appendChild(card);
+    });
+}
+
+function openStaffModal(id) {
+    const person = staff.find(function (p) { return p.id === id; });
+    document.getElementById("formError").classList.add("d-none");
+    document.getElementById("staffForm").reset();
+    document.getElementById("editStaffId").value = person ? person.id : "";
+    document.getElementById("modalTitle").textContent = person ? "Edit Staff Member" : "Add Staff Member";
+    document.getElementById("staffName").value = person ? person.name : "";
+    document.getElementById("staffMobile").value = person ? person.mobile : "";
+    document.getElementById("staffPin").value = person ? person.pin : "";
+    document.getElementById("staffRole").value = person ? person.role : "staff";
+    permissionFields.forEach(function (f, i) {
+        document.getElementById(f).checked = person ? person.permissions.includes(f) : i < 2;
+    });
+    updatePermissionVisibility();
+    staffModal.show();
+}
+
+function updatePermissionVisibility() {
+    document.getElementById("permissionsSection").hidden = document.getElementById("staffRole").value === "admin";
+}
+
+document.getElementById("staffRole").addEventListener("change", updatePermissionVisibility);
+
+document.getElementById("staffForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    const errorEl = document.getElementById("formError");
+    const id = document.getElementById("editStaffId").value;
+    const name = document.getElementById("staffName").value.trim();
+    const mobile = document.getElementById("staffMobile").value.trim();
+    const pin = document.getElementById("staffPin").value.trim();
+    const role = document.getElementById("staffRole").value;
+    errorEl.classList.add("d-none");
+
+    if (!name || !mobile || !/^\d{4}$/.test(pin)) {
+        errorEl.textContent = "Name, mobile and a 4-digit PIN are required.";
+        errorEl.classList.remove("d-none");
+        return;
+    }
+    const duplicate = staff.some(function (p) {
+        return p.id !== id && p.mobile.replace(/\D/g, "") === mobile.replace(/\D/g, "");
+    });
+    if (duplicate) {
+        errorEl.textContent = "A staff member with this mobile number already exists.";
+        errorEl.classList.remove("d-none");
+        return;
+    }
+    const permissions = role === "admin" ? [] : permissionFields.filter(function (f) { return document.getElementById(f).checked; });
+    const person = { id: id || createId(), name: name, mobile: mobile, pin: pin, role: role, permissions: permissions };
+    if (id) staff = staff.map(function (existing) { return existing.id === id ? person : existing; });
+    else staff.push(person);
+
+    if (persistStaff()) {
+        staffModal.hide();
+        renderStaffList();
+    }
+});
+
+function deleteStaff(id) {
+    const person = staff.find(function (p) { return p.id === id; });
+    if (!person) return;
+    if (!confirm("Delete " + person.name + "? They will no longer be able to log in.")) return;
+    staff = staff.filter(function (p) { return p.id !== id; });
+    if (persistStaff()) renderStaffList();
+}
+
+window.onload = function () {
+    staffModal = new bootstrap.Modal(document.getElementById("staffModal"));
+    document.getElementById("deployUrlLabel").textContent = GOOGLE_SCRIPT_URL || "Not configured";
+    loadStaff();
+    renderStaffList();
+};
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

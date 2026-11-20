@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Reports — CueClub Manager</title>
+    <title>Sales Reports — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -312,71 +312,112 @@ function calculateReport(period) {
 // Render top selling items
 function renderTopItems(productSales) {
     const container = document.getElementById("topItemsList");
-    if (!Object.keys(productSales).length) {
+    const entries = Object.entries(productSales || {});
+    if (!entries.length) {
         container.innerHTML = '<p class="text-muted small">No product sales in this period.</p>';
         return;
     }
-    
-    const sorted = Object.entries(productSales).sort((a, b) => b[1].revenue - a[1].revenue);
-    const maxRev = sorted[0][1].revenue;
-    
+    const sorted = entries.sort((a, b) => b[1].revenue - a[1].revenue);
+    const maxRev = sorted[0][1].revenue || 1;
     container.innerHTML = "";
     sorted.forEach(([name, data]) => {
         const percent = maxRev > 0 ? (data.revenue / maxRev) * 100 : 0;
         container.innerHTML += `
             <div class="item-row">
                 <span class="me-2">${escapeHtml(data.emoji)} ${escapeHtml(name)}</span>
-                <div class="flex-grow-1 mx-3">
-                    <div class="bar-wrapper">
-                        <div class="bar-fill bar-sales" style="width: ${percent}%;"></div>
-                    </div>
-                </div>
-                <div class="text-end">
-                    <div class="small text-muted">${data.quantity} sold</div>
-                    <div class="fw-bold">${formatCurrency(data.revenue)}</div>
-                </div>
-            </div>
-        `;
+                <div class="flex-grow-1 mx-3"><div class="bar-wrapper"><div class="bar-fill bar-sales" style="width: ${percent}%;"></div></div></div>
+                <div class="text-end"><div class="small text-muted">${data.quantity} sold</div><div class="fw-bold">${formatCurrency(data.revenue)}</div></div>
+            </div>`;
     });
 }
 
-// Render daily trend
+// Render daily trend bars
 function renderDailyTrend(dailyTrend) {
     const container = document.getElementById("dailyTrend");
-    if (!dailyTrend.length) {
+    if (!dailyTrend || !dailyTrend.length) {
         container.innerHTML = '<p class="text-muted small">No data available for this period.</p>';
         return;
     }
-    
     const maxRev = Math.max(...dailyTrend.map(d => d.revenue)) || 1;
     const todayStr = new Date().toLocaleDateString('en-LK', { month: 'short', day: 'numeric' });
-    
     container.innerHTML = "";
     dailyTrend.slice(-7).forEach(day => {
         const width = (day.revenue / maxRev) * 100;
         const isToday = day.date === todayStr;
         container.innerHTML += `
             <div class="bar-container">
-                <div class="bar-label">
-                    ${isToday ? '<span class="today-badge">TODAY</span> ' : ''}${day.date}
-                </div>
-                <div class="bar-wrapper">
-                    <div class="bar-fill bar-table" style="width: ${width}%;"></div>
-                </div>
+                <div class="bar-label">${isToday ? '<span class="today-badge">TODAY</span> ' : ''}${day.date}</div>
+                <div class="bar-wrapper"><div class="bar-fill bar-table" style="width: ${width}%;"></div></div>
                 <div class="bar-value">${formatCurrency(day.revenue)}</div>
-            </div>
-        `;
+            </div>`;
     });
 }
 
 // Render daily table
 function renderDailyTable(dailyTrend) {
     const tbody = document.getElementById("dailyTableBody");
-    if (!dailyTrend.length) {
+    if (!dailyTrend || !dailyTrend.length) {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No data available yet.</td></tr>';
         return;
     }
-    
     const todayStr = new Date().toLocaleDateString('en-LK', { month: 'short', day: 'numeric' });
     tbody.innerHTML = "";
     dailyTrend.slice(-7).forEach(day => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${day.date}${day.date === todayStr ? ' <span class="badge bg-success">Today</span>' : ""}</td>
+            <td>${day.sessions}</td><td>${formatCurrency(day.revenue)}</td><td>${formatCurrency(day.revenue)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderReport() {
+    const period = document.getElementById("periodSelect").value;
+    const range = getDateRange(period);
+    document.getElementById("dateRange").textContent = range.label || "";
+    const r = calculateReport(period);
+    document.getElementById("totalSales").textContent = formatCurrency(r.totalSales);
+    document.getElementById("tableRevenue").textContent = formatCurrency(r.tableRevenue);
+    document.getElementById("productRevenue").textContent = formatCurrency(r.productRevenue);
+    document.getElementById("calcTable").textContent = formatCurrency(r.tableRevenue);
+    document.getElementById("calcProducts").textContent = formatCurrency(r.productRevenue);
+    document.getElementById("calcDiscounts").textContent = "− " + formatCurrency(r.totalDiscounts);
+    document.getElementById("calcExpenses").textContent = "− " + formatCurrency(r.totalExpenses);
+    document.getElementById("netIncome").textContent = formatCurrency(r.netIncome);
+    renderTopItems(r.productSales);
+    renderDailyTrend(r.dailyTrend);
+    renderDailyTable(r.dailyTrend);
+}
+
+function changePeriod() { renderReport(); }
+
+function exportReport() {
+    const period = document.getElementById("periodSelect").value;
+    const r = calculateReport(period);
+    const rows = [
+        ["PYRAMID SNOOKER PALOR MANAGEMENT — Sales Report"],
+        ["Period", document.getElementById("dateRange").textContent],
+        ["Total Sales", r.totalSales.toFixed(2)],
+        ["Table Revenue", r.tableRevenue.toFixed(2)],
+        ["Product Revenue", r.productRevenue.toFixed(2)],
+        ["Discounts", r.totalDiscounts.toFixed(2)],
+        ["Expenses", r.totalExpenses.toFixed(2)],
+        ["Net Income", r.netIncome.toFixed(2)],
+        [],
+        ["Date", "Sessions", "Revenue"],
+        ...r.dailyTrend.map(d => [d.date, d.sessions, d.revenue.toFixed(2)])
+    ];
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sales-report-" + period + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+renderReport();
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

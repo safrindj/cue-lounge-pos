@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customers — CueClub Manager</title>
+    <title>Customers — PYRAMID SNOOKER PALOR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -300,29 +300,33 @@ window.onload = function(){
     updateStats();
 };
 
-function renderCustomerList(filterText = ""){
+function filterCustomers() {
+    renderCustomerList(document.getElementById("searchInput").value);
+}
+
+function renderCustomerList(filterText = "") {
     const container = document.getElementById("customerList");
     container.innerHTML = "";
-    
+
     let filtered = customers;
-    if(filterText){
-        const ft = filterText.toLowerCase();
+    if (filterText && String(filterText).trim()) {
+        const ft = String(filterText).trim().toLowerCase();
         filtered = customers.filter(c => {
-            if(!c || typeof c !== "object") return false;
-            const name = String(c.name ?? "").toLowerCase();
-            const mobile = String(c.mobile ?? "").toLowerCase();
-            return name.includes(ft) || mobile.includes(ft);
+            if (!c || typeof c !== "object") return false;
+            return String(c.name || "").toLowerCase().includes(ft) ||
+                   String(c.mobile || "").toLowerCase().includes(ft) ||
+                   String(c.whatsapp || "").toLowerCase().includes(ft);
         });
     }
-    
-    if(!filtered.length){
-        container.innerHTML = '<div class="text-center text-muted py-4">No customers found.</div>';
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-users fa-2x mb-2 d-block"></i>No customers found.</div>';
         return;
     }
-    
+
     filtered.forEach(cust => {
-        const tier = getLoyaltyTier(cust.totalSpent);
-        const stars = "⭐".repeat(tier.stars);
+        const tier = getLoyaltyTier(Number(cust.totalSpent) || 0);
+        const stars = "★".repeat(tier.stars);
         const card = document.createElement("div");
         card.className = "customer-card";
         card.setAttribute("role", "button");
@@ -333,9 +337,122 @@ function renderCustomerList(filterText = ""){
                     <h6 class="mb-1">${escapeHtml(cust.name)}</h6>
                     <div class="small text-muted"><i class="fas fa-mobile-alt me-1"></i>${escapeHtml(cust.mobile)}</div>
                 </div>
-                <span class="loyalty-badge ${tier.badgeClass}">${tier.name}${stars ? ` ${stars}` : ""}</span>
+                <span class="loyalty-badge ${tier.badgeClass}">${tier.name}${stars ? " " + stars : ""}</span>
             </div>
             <div class="d-flex justify-content-between mt-2 small text-muted">
-                <span>${cust.totalVisits} visits</span>
-                <span>Rs. ${Number(cust.totalSpent).toLocaleString()}</span>
-            </div>`
+                <span>${Number(cust.totalVisits) || 0} visits</span>
+                <span>Rs. ${Number(cust.totalSpent || 0).toLocaleString()}</span>
+            </div>`;
+        card.addEventListener("click", () => openDetail(cust.id));
+        card.addEventListener("keydown", e => { if (e.key === "Enter") openDetail(cust.id); });
+        container.appendChild(card);
+    });
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById("totalCustomers").textContent = customers.length;
+    const todayStr = new Date().toDateString();
+    let todayCount = 0;
+    customers.forEach(c => {
+        (c.history || []).forEach(h => {
+            if (h && h.date && new Date(h.date).toDateString() === todayStr) todayCount++;
+        });
+    });
+    document.getElementById("todayVisits").textContent = todayCount;
+    let top = { name: "—", spent: -1 };
+    customers.forEach(c => { if ((Number(c.totalSpent) || 0) > top.spent) top = { name: c.name, spent: Number(c.totalSpent) || 0 }; });
+    document.getElementById("topTier").textContent = top.spent >= 0 ? getLoyaltyTier(top.spent).name : "—";
+}
+
+function openDetail(id) {
+    const cust = customers.find(c => c.id === id);
+    if (!cust) return;
+    currentCustomerId = id;
+    document.getElementById("detailName").textContent = cust.name || "—";
+    document.getElementById("detailMobile").textContent = cust.mobile || "—";
+    document.getElementById("detailSince").textContent = "Member since: " + formatDate(cust.regDate);
+    const tier = getLoyaltyTier(Number(cust.totalSpent) || 0);
+    const badge = document.getElementById("detailLoyalty");
+    badge.textContent = tier.name + (tier.stars ? " " + "★".repeat(tier.stars) : "");
+    badge.className = "loyalty-badge " + tier.badgeClass;
+    document.getElementById("detailPoints").textContent = (Number(cust.points) || 0) + " Points";
+    document.getElementById("pointsProgress").style.width = Math.min(100, (Number(cust.totalSpent) || 0) / 500) + "%";
+    document.getElementById("detailSpent").textContent = "Rs. " + Number(cust.totalSpent || 0).toLocaleString();
+    document.getElementById("detailVisits").textContent = Number(cust.totalVisits) || 0;
+
+    const history = document.getElementById("historyList");
+    history.innerHTML = (cust.history || []).length ? "" : '<div class="p-3 text-muted small">No visits recorded yet.</div>';
+    (cust.history || []).slice().reverse().forEach(h => {
+        const row = document.createElement("div");
+        row.className = "history-item d-flex justify-content-between";
+        row.innerHTML = `<div><small class="text-muted">${formatDate(h.date)}</small><div>${escapeHtml(h.billNo || "Visit")}</div></div>
+            <span class="bill-amount">Rs. ${Number(h.amount || 0).toLocaleString()}</span>`;
+        history.appendChild(row);
+    });
+    document.getElementById("mainWrapper").classList.add("active-view");
+}
+
+function goBack() {
+    document.getElementById("mainWrapper").classList.remove("active-view");
+    currentCustomerId = null;
+    renderCustomerList();
+}
+
+function openNewCustomerModal(person = null) {
+    document.getElementById("modalTitle").textContent = person ? "Edit Customer" : "Add New Customer";
+    document.getElementById("custId").value = person ? person.id : nextCustomerId();
+    document.getElementById("custName").value = person ? person.name : "";
+    document.getElementById("custMobile").value = person ? person.mobile : "";
+    document.getElementById("custWhatsapp").value = person ? (person.whatsapp || "") : "";
+    document.getElementById("custNotes").value = person ? (person.notes || "") : "";
+    document.getElementById("custManualDiscount").value = person && person.manualDiscount != null ? person.manualDiscount : "";
+    customerModal.show();
+}
+
+function saveCustomer() {
+    const id = document.getElementById("custId").value;
+    const name = document.getElementById("custName").value.trim();
+    const mobile = document.getElementById("custMobile").value.trim();
+    if (!name || !mobile) { alert("Name and mobile number are required."); return; }
+    const whatsapp = document.getElementById("custWhatsapp").value.trim();
+    const notes = document.getElementById("custNotes").value.trim();
+    const rawDisc = document.getElementById("custManualDiscount").value.trim();
+    const manualDiscount = rawDisc === "" ? null : Math.max(0, Math.min(100, Number(rawDisc) || 0));
+
+    const existing = customers.find(c => c.id === id);
+    if (existing) {
+        Object.assign(existing, { name, mobile, whatsapp, notes, manualDiscount });
+    } else {
+        customers.push({
+            id, name, mobile, whatsapp, notes, manualDiscount,
+            totalSpent: 0, totalVisits: 0, points: 0,
+            regDate: new Date().toISOString(), history: []
+        });
+    }
+    saveCustomers();
+    customerModal.hide();
+    renderCustomerList();
+    alert("Customer saved.");
+}
+
+function editCustomer() {
+    const cust = customers.find(c => c.id === currentCustomerId);
+    if (cust) openNewCustomerModal(cust);
+}
+
+function deleteCustomer() {
+    const cust = customers.find(c => c.id === currentCustomerId);
+    if (!cust) return;
+    if (!confirm("Delete " + cust.name + " from the customer list?")) return;
+    customers = customers.filter(c => c.id !== currentCustomerId);
+    saveCustomers();
+    goBack();
+}
+
+document.getElementById("modalSaveBtn").addEventListener("click", saveCustomer);
+
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>
