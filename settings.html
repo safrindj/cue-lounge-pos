@@ -36,8 +36,7 @@
     </style>
 </head>
 <body>
- <!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -47,25 +46,24 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
  
 <header class="header-bar d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
         <a href="dashboard.html" class="back-link" aria-label="Back to dashboard"><i class="fas fa-arrow-left"></i></a>
-        <h1 class="h5 mb-0"><i class="fas fa-cog me-2"></i>Settings</h1>
+        <h1 class="h5 mb-0"><i class="fas fa-cog me-2"></i> Settings</h1>
     </div>
-    <button class="btn btn-sm btn-light" type="button" onclick="saveAllSettings()"><i class="fas fa-save me-1"></i>Save All</button>
+    <button class="btn btn-sm btn-light" type="button" onclick="saveAllSettings()"><i class="fas fa-save me-1"></i> Save All</button>
 </header>
 
 <main class="container px-3 mt-4">
     <div id="saveNotice" class="alert alert-success d-none" role="status" aria-live="polite"></div>
 
     <section class="section-card" aria-labelledby="profileTitle">
-        <h2 class="section-title" id="profileTitle"><i class="fas fa-building"></i>Business Profile</h2>
+        <h2 class="section-title" id="profileTitle"><i class="fas fa-building"></i> Business Profile</h2>
         <div class="row align-items-center mb-3">
             <div class="col-auto"><div class="logo-preview" id="logoPreview" aria-label="Business logo preview">🏪</div></div>
             <div class="col">
-                <label for="logoFile" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-image me-1"></i>Upload Logo</label>
+                <label for="logoFile" class="btn btn-sm btn-outline-secondary mb-2"><i class="fas fa-image me-1"></i> Upload Logo</label>
                 <input type="file" id="logoFile" class="d-none" accept="image/png,image/jpeg,image/webp">
                 <p class="small text-muted mb-0">Recommended: 200×200px, PNG/JPG</p>
             </div>
@@ -80,11 +78,11 @@ checkAuth();
     </section>
 
     <section class="section-card" aria-labelledby="pricingTitle">
-        <h2 class="section-title" id="pricingTitle"><i class="fas fa-tags"></i>Pricing &amp; Billing</h2>
+        <h2 class="section-title" id="pricingTitle"><i class="fas fa-tags"></i> Pricing & Billing</h2>
         <div class="row mb-3">
             <div class="col-md-4 mb-3 mb-md-0"><label class="form-label-sm" for="snookerRate">Snooker Rate (per hour)</label><input type="number" id="snookerRate" class="form-control" value="1000" min="0" step="0.01"></div>
             <div class="col-md-4 mb-3 mb-md-0"><label class="form-label-sm" for="poolRate">Pool Rate (per hour)</label><input type="number" id="poolRate" class="form-control" value="800" min="0" step="0.01"></div>
-            <div class="col-md-4"><label class="form-label-sm" for="currency">Currency</label><select id="currency" class="form-select"><option value="LKR">LKR — Rs.</option><option value="USD">USD — $</option><option value="EUR">EUR — €</option></select></div>
+            <div class="col-md-4"><label class="form-label-sm" for="currency">Currency</label><select id="currency" class="form-select"><option value="LKR" selected>LKR — Rs.</option><option value="USD">USD — $</option><option value="EUR">EUR — €</option></select></div>
         </div>
         <div class="row mb-3">
             <div class="col-md-6 mb-3 mb-md-0"><label class="form-label-sm" for="defaultDiscount">Default Discount (%)</label><input type="number" id="defaultDiscount" class="form-control" value="0" min="0" max="100" step="0.01"></div>
@@ -97,14 +95,14 @@ checkAuth();
 
     <section class="section-card" aria-labelledby="staffTitle">
         <div class="section-title justify-content-between mb-3">
-            <h2 class="h6 mb-0 fw-semibold"><i class="fas fa-users me-1"></i>Staff &amp; Access Control</h2>
-            <button class="btn-add btn-sm" type="button" onclick="openAddStaffModal()"><i class="fas fa-plus me-1"></i>Add Staff</button>
+            <h2 class="h6 mb-0 fw-semibold"><i class="fas fa-users me-1"></i> Staff & Access Control</h2>
+            <button class="btn-add btn-sm" type="button" onclick="openAddStaffModal()"><i class="fas fa-plus me-1"></i> Add Staff</button>
         </div>
         <div id="staffList"></div>
     </section>
 
     <section class="section-card" aria-labelledby="systemTitle">
-        <h2 class="section-title" id="systemTitle"><i class="fas fa-cogs"></i>System &amp; Backup</h2>
+        <h2 class="section-title" id="systemTitle"><i class="fas fa-cogs"></i> System & Backup</h2>
         <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
             <div><strong>☁️ Auto Backup</strong><div class="small text-muted">Automatically backup to Google Sheets daily</div></div>
             <label class="toggle-switch" aria-label="Enable automatic backup"><input type="checkbox" id="autoBackup" checked><span class="toggle-slider"></span></label>
@@ -114,14 +112,14 @@ checkAuth();
             <label class="toggle-switch" aria-label="Enable automatic bill archive"><input type="checkbox" id="autoArchive"><span class="toggle-slider"></span></label>
         </div>
         <div class="py-3">
-            <button class="btn btn-outline-primary w-100 mb-2" type="button" onclick="exportAllData()"><i class="fas fa-file-export me-1"></i>Export All Data (JSON)</button>
-            <button class="btn btn-outline-secondary w-100 mb-2" type="button" onclick="document.getElementById('importFile').click()"><i class="fas fa-file-import me-1"></i>Import Data</button>
+            <button class="btn btn-outline-primary w-100 mb-2" type="button" onclick="exportAllData()"><i class="fas fa-file-export me-1"></i> Export All Data (JSON)</button>
+            <button class="btn btn-outline-secondary w-100 mb-2" type="button" onclick="document.getElementById('importFile').click()"><i class="fas fa-file-import me-1"></i> Import Data</button>
             <input type="file" id="importFile" class="d-none" accept=".json,application/json">
         </div>
         <div class="py-3 danger-zone rounded px-3">
-            <h3 class="h6 text-danger mb-2"><i class="fas fa-exclamation-triangle me-1"></i>Danger Zone</h3>
+            <h3 class="h6 text-danger mb-2"><i class="fas fa-exclamation-triangle me-1"></i> Danger Zone</h3>
             <p class="small text-muted mb-3">This removes settings saved by this page from this browser. This action cannot be undone.</p>
-            <button class="btn btn-outline-danger w-100" type="button" onclick="clearAllData()"><i class="fas fa-trash-alt me-1"></i>Clear Saved Settings</button>
+            <button class="btn btn-outline-danger w-100" type="button" onclick="clearAllData()"><i class="fas fa-trash-alt me-1"></i> Clear Saved Settings</button>
         </div>
     </section>
 </main>
@@ -138,13 +136,13 @@ checkAuth();
                 <div class="mb-3"><label class="form-label" for="staffRole">Role / Access Level *</label><select id="staffRole" class="form-select"><option value="admin">🔑 Administrator — Full Access</option><option value="staff">👤 Staff — Limited Access</option></select></div>
                 <div id="permissionsSection" class="bg-light p-3 rounded">
                     <span class="form-label d-block">Permissions</span>
-                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permSell" checked><label class="form-check-label" for="permSell">Create Bills &amp; Sales</label></div>
-                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permView" checked><label class="form-check-label" for="permView">View Reports &amp; History</label></div>
+                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permSell" checked><label class="form-check-label" for="permSell">Create Bills & Sales</label></div>
+                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permView" checked><label class="form-check-label" for="permView">View Reports & History</label></div>
                     <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permCustomer"><label class="form-check-label" for="permCustomer">Manage Customers</label></div>
-                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permInventory"><label class="form-check-label" for="permInventory">Manage Products &amp; Stock</label></div>
+                    <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permInventory"><label class="form-check-label" for="permInventory">Manage Products & Stock</label></div>
                     <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="permExpenses"><label class="form-check-label" for="permExpenses">Record Expenses</label></div>
                 </div>
-                <p class="small text-muted mt-3 mb-0">Staff details, including PINs, are stored only in this browser and are not suitable for secure authentication.</p>
+                <p class="small text-muted mt-3 mb-0">Staff details, including PINs, are stored only in this browser.</p>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save Staff</button></div>
         </form>
@@ -153,255 +151,385 @@ checkAuth();
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-(() => {
-    const STORAGE_KEY = 'cueclubSettings';
-    const fields = ['bizName', 'bizAddress', 'bizPhone', 'bizEmail', 'snookerRate','poolRate', 'currency', 'defaultDiscount', 'taxRate', 'taxInclusive', 'quickSellOnSession', 'autoBackup', 'autoArchive'];
-    const permissionFields = ['permSell', 'permView', 'permCustomer', 'permInventory', 'permExpenses'];
-    let settings = {};
-    let logoData = '';
-    let staff = [];
-    let staffModal;
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-    function readForm() {
-        const values = {};
-        fields.forEach(id => {
-            const el = document.getElementById(id);
-            values[id] = el.type === 'checkbox' ? el.checked : el.value;
-        });
-        values.logo = logoData;
-        values.staff = staff;
-        return values;
-    }
+const STORAGE_KEY = 'cueclubSettings';
+const fields = ['bizName', 'bizAddress', 'bizPhone', 'bizEmail', 'snookerRate', 'poolRate', 'currency', 'defaultDiscount', 'taxRate', 'taxInclusive', 'quickSellOnSession', 'autoBackup', 'autoArchive'];
+const permissionFields = ['permSell', 'permView', 'permCustomer', 'permInventory', 'permExpenses'];
+const permissionLabels = {
+    permSell: 'Create Bills & Sales',
+    permView: 'View Reports & History',
+    permCustomer: 'Manage Customers',
+    permInventory: 'Manage Products & Stock',
+    permExpenses: 'Record Expenses'
+};
 
-    function persist(message = 'Settings saved in this browser.') {
-        try {
-            settings = readForm();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-            showNotice(message, 'success');
-            return true;
-        } catch (error) {
-            showNotice('Could not save settings. Browser storage may be full or unavailable.', 'danger');
-            return false;
+let settings = {};
+let logoData = '';
+let staff = [];
+let staffModal;
+
+function showNotice(message, type = 'success') {
+    const notice = document.getElementById('saveNotice');
+    notice.textContent = message;
+    notice.className = `alert alert-${type}`;
+    notice.classList.remove('d-none');
+    clearTimeout(showNotice.timer);
+    showNotice.timer = setTimeout(() => notice.classList.add('d-none'), 3500);
+}
+
+function collectSettings() {
+    const result = {};
+    fields.forEach(id => {
+        const element = document.getElementById(id);
+        result[id] = element.type === 'checkbox' ? element.checked : element.value;
+    });
+    return result;
+}
+
+function applySettings(values = {}) {
+    fields.forEach(id => {
+        if (!Object.prototype.hasOwnProperty.call(values, id)) return;
+        const element = document.getElementById(id);
+        const value = values[id];
+        if (element.type === 'checkbox' && typeof value === 'boolean') element.checked = value;
+        else if (element.type !== 'checkbox' && (typeof value === 'string' || typeof value === 'number')) element.value = String(value);
+    });
+    settings = collectSettings();
+}
+
+function normalizeStaff(value) {
+    if (!Array.isArray(value)) return [];
+    return value.filter(person => person && typeof person === 'object' &&
+        typeof person.name === 'string' && typeof person.mobile === 'string' &&
+        typeof person.pin === 'string' && /^[0-9]{4}$/.test(person.pin) &&
+        ['admin', 'staff'].includes(person.role)).map(person => ({
+            id: String(person.id || createId()),
+            name: person.name.slice(0, 80),
+            mobile: person.mobile.slice(0, 24),
+            pin: person.pin,
+            role: person.role,
+            permissions: Array.isArray(person.permissions) ? permissionFields.filter(id => person.permissions.includes(id)) : []
+        }));
+}
+
+function createId() {
+    return window.crypto && typeof window.crypto.randomUUID === 'function'
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function loadFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            settings = collectSettings();
+            return;
         }
-    }
-
-    function showNotice(message, type) {
-        const notice = document.getElementById('saveNotice');
-        notice.textContent = message;
-        notice.className = `alert alert-${type}`;
-        window.clearTimeout(showNotice.timer);
-        showNotice.timer = window.setTimeout(() => notice.classList.add('d-none'), 3500);
-    }
-
-    function loadSettings() {
-        try {
-            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-            if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return;
-            settings = saved;
-            fields.forEach(id => {
-                if (saved[id] === undefined) return;
-                const el = document.getElementById(id);
-                if (el.type === 'checkbox') el.checked = Boolean(saved[id]);
-                else el.value = String(saved[id]);
-            });
-            logoData = typeof saved.logo === 'string' ? saved.logo : '';
-            renderLogo();
-            staff = Array.isArray(saved.staff) ? saved.staff.filter(person => person && typeof person === 'object') : [];
-            if (saved.hourlyRate !== undefined && saved.snookerRate === undefined) {
-                document.getElementById('snookerRate').value = saved.hourlyRate;
-                document.getElementById('poolRate').value = saved.hourlyRate;
-            }
-        } catch (error) {
-            showNotice('Saved settings could not be read. Defaults are shown.', 'warning');
-        }
-    }
-
-    function renderLogo() {
-        const preview = document.getElementById('logoPreview');
-        preview.replaceChildren();
-        if (logoData) {
+        const data = JSON.parse(raw);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid settings data');
+        applySettings(data);
+        staff = normalizeStaff(data.staff);
+        if (typeof data.logo === 'string' && data.logo.startsWith('data:image/')) {
+            logoData = data.logo;
+            document.getElementById('logoPreview').innerHTML = '';
             const image = document.createElement('img');
             image.src = logoData;
             image.alt = 'Business logo';
-            preview.append(image);
-        } else {
-            preview.textContent = '🏪';
+            document.getElementById('logoPreview').appendChild(image);
+        }
+    } catch (error) {
+        settings = collectSettings();
+        staff = [];
+        showNotice('Saved settings could not be loaded. The saved data may be invalid.', 'warning');
+    }
+}
+
+function saveToStorage() {
+    settings = collectSettings();
+    const data = { ...settings, logo: logoData, staff };
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (error) {
+        showNotice('Could not save settings in this browser. Storage may be full or unavailable.', 'danger');
+        return false;
+    }
+
+    if (GOOGLE_SCRIPT_URL && settings.autoBackup) {
+        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) })
+            .catch(() => showNotice('Settings saved locally, but the online backup could not be reached.', 'warning'));
+    }
+    return true;
+}
+
+function saveAllSettings() {
+    if (!document.querySelector('main').querySelectorAll('input, select, textarea')[0] || !validateNumericSettings()) return;
+    if (saveToStorage()) showNotice('All settings saved.');
+}
+
+function validateNumericSettings() {
+    const ids = ['snookerRate', 'poolRate', 'defaultDiscount', 'taxRate'];
+    for (const id of ids) {
+        const input = document.getElementById(id);
+        if (!input.checkValidity() || input.value === '') {
+            input.reportValidity();
+            return false;
         }
     }
+    return true;
+}
 
-    function renderStaff() {
-        const list = document.getElementById('staffList');
-        list.replaceChildren();
-        if (!staff.length) {
-            const empty = document.createElement('p');
-            empty.className = 'text-muted mb-0';
-            empty.textContent = 'No staff members yet. Select “Add Staff” to create one.';
-            list.append(empty);
-            return;
+function saveProfile() {
+    if (!document.getElementById('bizName').value.trim()) {
+        document.getElementById('bizName').focus();
+        showNotice('Please enter a business name.', 'warning');
+        return;
+    }
+    if (!document.getElementById('bizEmail').checkValidity()) {
+        document.getElementById('bizEmail').reportValidity();
+        return;
+    }
+    if (saveToStorage()) showNotice('Business profile saved.');
+}
+
+function savePricing() {
+    if (validateNumericSettings() && saveToStorage()) showNotice('Pricing settings saved.');
+}
+
+function renderStaff() {
+    const list = document.getElementById('staffList');
+    list.replaceChildren();
+    if (!staff.length) {
+        const empty = document.createElement('p');
+        empty.className = 'small text-muted mb-0';
+        empty.textContent = 'No staff members added yet.';
+        list.appendChild(empty);
+        return;
+    }
+    staff.forEach(person => {
+        const card = document.createElement('div');
+        card.className = 'staff-card';
+        const row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-start gap-2';
+        const details = document.createElement('div');
+        const name = document.createElement('strong');
+        name.textContent = person.name;
+        const role = document.createElement('span');
+        role.className = `staff-role ms-2 ${person.role === 'admin' ? 'role-admin' : 'role-staff'}`;
+        role.textContent = person.role === 'admin' ? 'Administrator' : 'Staff';
+        const mobile = document.createElement('div');
+        mobile.className = 'small text-muted mt-1';
+        mobile.textContent = person.mobile;
+        details.append(name, role, mobile);
+        if (person.role === 'staff' && person.permissions.length) {
+            const permissions = document.createElement('div');
+            permissions.className = 'mt-2';
+            person.permissions.forEach(id => {
+                const badge = document.createElement('span');
+                badge.className = 'perm-badge';
+                badge.textContent = permissionLabels[id];
+                permissions.appendChild(badge);
+            });
+            details.appendChild(permissions);
         }
-        staff.forEach(person => {
-            const card = document.createElement('div');
-            card.className = 'staff-card d-flex flex-wrap justify-content-between align-items-center gap-2';
-            const info = document.createElement('div');
-            const name = document.createElement('strong');
-            name.textContent = person.name || 'Unnamed staff member';
-            const role = document.createElement('span');
-            role.className = `staff-role ms-2 ${person.role === 'admin' ? 'role-admin' : 'role-staff'}`;
-            role.textContent = person.role === 'admin' ? 'Admin' : 'Staff';
-            const mobile = document.createElement('div');
-            mobile.className = 'small text-muted mt-1';
-            mobile.textContent = person.mobile || '';
-            info.append(name, role, mobile);
-            const actions = document.createElement('div');
-            const edit = document.createElement('button');
-            edit.type = 'button'; edit.className = 'action-sm edit-btn'; edit.setAttribute('aria-label', `Edit ${person.name || 'staff member'}`);
-            edit.innerHTML = '<i class="fas fa-edit"></i>';
-            edit.addEventListener('click', () => editStaff(person.id));
-            const remove = document.createElement('button');
-            remove.type = 'button'; remove.className = 'action-sm delete-btn'; remove.setAttribute('aria-label', `Delete ${person.name || 'staff member'}`);
-            remove.innerHTML = '<i class="fas fa-trash"></i>';
-            remove.addEventListener('click', () => deleteStaff(person.id));
-            actions.append(edit, remove);
-            card.append(info, actions);
-            list.append(card);
-        });
-    }
+        const actions = document.createElement('div');
+        actions.className = 'text-nowrap';
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'action-sm edit-btn';
+        edit.setAttribute('aria-label', `Edit ${person.name}`);
+        edit.innerHTML = '<i class="fas fa-edit"></i>';
+        edit.addEventListener('click', () => editStaff(person.id));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'action-sm delete-btn';
+        remove.setAttribute('aria-label', `Delete ${person.name}`);
+        remove.innerHTML = '<i class="fas fa-trash"></i>';
+        remove.addEventListener('click', () => deleteStaff(person.id));
+        actions.append(edit, remove);
+        row.append(details, actions);
+        card.appendChild(row);
+        list.appendChild(card);
+    });
+}
 
-    function togglePermissions() {
-        const isAdmin = document.getElementById('staffRole').value === 'admin';
-        const section = document.getElementById('permissionsSection');
-        section.classList.toggle('opacity-50', isAdmin);
-        permissionFields.forEach(id => { document.getElementById(id).disabled = isAdmin; });
-    }
+function openAddStaffModal(person = null) {
+    const form = document.getElementById('staffForm');
+    form.reset();
+    document.getElementById('editStaffId').value = person ? person.id : '';
+    document.getElementById('staffModalTitle').textContent = person ? 'Edit Staff Member' : 'Add Staff Member';
+    document.getElementById('staffName').value = person ? person.name : '';
+    document.getElementById('staffMobile').value = person ? person.mobile : '';
+    document.getElementById('staffPin').value = person ? person.pin : '';
+    document.getElementById('staffRole').value = person ? person.role : 'admin';
+    permissionFields.forEach((id, index) => {
+        document.getElementById(id).checked = person ? person.permissions.includes(id) : index < 2;
+    });
+    updatePermissionVisibility();
+    staffModal.show();
+}
 
-    function openAddStaffModal() {
-        document.getElementById('staffForm').reset();
-        document.getElementById('editStaffId').value = '';
-        document.getElementById('staffModalTitle').textContent = 'Add Staff Member';
-        document.getElementById('staffPin').required = true;
-        permissionFields.forEach(id => { document.getElementById(id).checked = ['permSell', 'permView'].includes(id); });
-        document.getElementById('staffRole').value = 'admin';
-        togglePermissions();
-        staffModal.show();
-    }
+function editStaff(id) {
+    const person = staff.find(member => member.id === id);
+    if (person) openAddStaffModal(person);
+}
 
-    function editStaff(id) {
-        const person = staff.find(item => item.id === id);
-        if (!person) return;
-        document.getElementById('staffForm').reset();
-        document.getElementById('editStaffId').value = person.id;
-        document.getElementById('staffModalTitle').textContent = 'Edit Staff Member';
-        document.getElementById('staffName').value = person.name || '';
-        document.getElementById('staffMobile').value = person.mobile || '';
-        document.getElementById('staffPin').value = person.pin || '';
-        document.getElementById('staffPin').required = false;
-        document.getElementById('staffRole').value = person.role === 'staff' ? 'staff' : 'admin';
-        permissionFields.forEach(id => { document.getElementById(id).checked = Boolean(person.permissions && person.permissions[id]); });
-        togglePermissions();
-        staffModal.show();
-    }
-
-    function deleteStaff(id) {
-        if (!window.confirm('Delete this staff member?')) return;
-        staff = staff.filter(person => person.id !== id);
+function deleteStaff(id) {
+    const person = staff.find(member => member.id === id);
+    if (!person || !window.confirm(`Delete ${person.name}?`)) return;
+    staff = staff.filter(member => member.id !== id);
+    if (saveToStorage()) {
         renderStaff();
-        persist('Staff member deleted.');
+        showNotice('Staff member deleted.');
     }
+}
 
-    document.getElementById('staffRole').addEventListener('change', togglePermissions);
-    document.getElementById('staffForm').addEventListener('submit', event => {
-        event.preventDefault();
-        const id = document.getElementById('editStaffId').value;
-        const previous = staff.find(person => person.id === id);
-        const person = {
-            id: id || (window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
-            name: document.getElementById('staffName').value.trim(),
-            mobile: document.getElementById('staffMobile').value.trim(),
-            pin: document.getElementById('staffPin').value || (previous && previous.pin) || '',
-            role: document.getElementById('staffRole').value,
-            permissions: Object.fromEntries(permissionFields.map(key => [key, document.getElementById(key).checked]))
-        };
-        if (!/^\d{4}$/.test(person.pin)) {
-            document.getElementById('staffPin').setCustomValidity('Enter a 4-digit PIN.');
-            document.getElementById('staffPin').reportValidity();
-            document.getElementById('staffPin').setCustomValidity('');
-            return;
-        }
-        if (id) staff = staff.map(item => item.id === id ? person : item);
-        else staff.push(person);
+function updatePermissionVisibility() {
+    document.getElementById('permissionsSection').hidden = document.getElementById('staffRole').value === 'admin';
+}
+
+document.getElementById('staffForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const id = document.getElementById('editStaffId').value;
+    const name = document.getElementById('staffName').value.trim();
+    const mobile = document.getElementById('staffMobile').value.trim();
+    const pin = document.getElementById('staffPin').value;
+    const role = document.getElementById('staffRole').value;
+    const duplicate = staff.some(person => person.id !== id && person.mobile.replace(/\D/g, '') === mobile.replace(/\D/g, ''));
+    if (duplicate) {
+        showNotice('A staff member with this mobile number already exists.', 'warning');
+        return;
+    }
+    const permissions = role === 'admin' ? [] : permissionFields.filter(field => document.getElementById(field).checked);
+    const person = { id: id || createId(), name, mobile, pin, role, permissions };
+    if (id) staff = staff.map(existing => existing.id === id ? person : existing);
+    else staff.push(person);
+    if (saveToStorage()) {
+        staffModal.hide();
         renderStaff();
-        if (persist('Staff member saved.')) staffModal.hide();
-    });
+        showNotice('Staff member saved.');
+    }
+});
 
-    document.getElementById('logoFile').addEventListener('change', event => {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
-        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-            showNotice('Choose a PNG, JPG, or WebP image.', 'danger'); event.target.value = ''; return;
-        }
-        if (file.size > 1024 * 1024) {
-            showNotice('Please choose an image smaller than 1 MB.', 'danger'); event.target.value = ''; return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => { logoData = String(reader.result); renderLogo(); persist('Logo and settings saved.'); };
-        reader.onerror = () => showNotice('The selected image could not be read.', 'danger');
-        reader.readAsDataURL(file);
-    });
+document.getElementById('staffRole').addEventListener('change', updatePermissionVisibility);
 
-    document.getElementById('importFile').addEventListener('change', event => {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const imported = JSON.parse(String(reader.result));
-                if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Invalid file');
-                if (!window.confirm('Import settings and replace the settings currently saved in this browser?')) return;
-                fields.forEach(id => {
-                    if (imported[id] === undefined) return;
-                    const el = document.getElementById(id);
-                    if (el.type === 'checkbox') el.checked = Boolean(imported[id]);
-                    else el.value = String(imported[id]);
-                });
-                logoData = typeof imported.logo === 'string' ? imported.logo : '';
-                staff = Array.isArray(imported.staff) ? imported.staff : [];
-                renderLogo(); renderStaff(); persist('Data imported successfully.');
-            } catch (error) {
-                showNotice('Import failed. Select a valid CueClub JSON export.', 'danger');
-            } finally { event.target.value = ''; }
-        };
-        reader.onerror = () => { showNotice('The selected file could not be read.', 'danger'); event.target.value = ''; };
-        reader.readAsText(file);
-    });
-
-    window.saveAllSettings = () => persist();
-    window.saveProfile = () => persist('Business profile saved.');
-    window.savePricing = () => persist('Pricing and billing settings saved.');
-    window.openAddStaffModal = openAddStaffModal;
-    window.exportAllData = () => {
-        const data = JSON.stringify(readForm(), null, 2);
-        const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-        const link = document.createElement('a');
-        link.href = url; link.download = 'cueclub-settings.json'; link.click();
-        URL.revokeObjectURL(url);
-        showNotice('Settings export downloaded.', 'success');
+document.getElementById('logoFile').addEventListener('change', event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+        showNotice('Choose a PNG, JPG, or WebP image smaller than 2 MB.', 'warning');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        if (typeof reader.result !== 'string') return;
+        logoData = reader.result;
+        const preview = document.getElementById('logoPreview');
+        preview.replaceChildren();
+        const image = document.createElement('img');
+        image.src = logoData;
+        image.alt = 'Business logo';
+        preview.appendChild(image);
     };
-    window.clearAllData = () => {
-        if (!window.confirm('Clear all CueClub settings and staff saved by this page in this browser?')) return;
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-            window.location.reload();
-        } catch (error) { showNotice('Could not clear browser storage.', 'danger'); }
-    };
+    reader.onerror = () => showNotice('The selected logo could not be read.', 'danger');
+    reader.readAsDataURL(file);
+});
 
-    loadSettings();
+function exportAllData() {
+    settings = collectSettings();
+    const data = { ...settings, logo: logoData, staff };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cueclub-data.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showNotice('Data export created.');
+}
+
+function importData(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('The file must contain a JSON object.');
+    const importedStaff = normalizeStaff(data.staff);
+    if (data.staff !== undefined && !Array.isArray(data.staff)) throw new Error('Staff data is not valid.');
+    const importedLogo = typeof data.logo === 'string' && data.logo.startsWith('data:image/') ? data.logo : '';
+    applySettings(data);
+    staff = importedStaff;
+    logoData = importedLogo;
+    const preview = document.getElementById('logoPreview');
+    preview.replaceChildren();
+    if (logoData) {
+        const image = document.createElement('img');
+        image.src = logoData;
+        image.alt = 'Business logo';
+        preview.appendChild(image);
+    } else {
+        preview.textContent = '🏪';
+    }
+    if (!validateNumericSettings()) throw new Error('Imported prices, discounts, or tax values are invalid.');
+    if (saveToStorage()) {
+        renderStaff();
+        showNotice('Data imported successfully.');
+    }
+}
+
+document.getElementById('importFile').addEventListener('change', async event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+        if (file.size > 5 * 1024 * 1024) throw new Error('The import file must be smaller than 5 MB.');
+        importData(JSON.parse(await file.text()));
+    } catch (error) {
+        showNotice(error.message || 'Could not import this file.', 'danger');
+    } finally {
+        event.target.value = '';
+    }
+});
+
+function clearAllData() {
+    if (!window.confirm('Clear all saved settings and staff from this browser? This cannot be undone.')) return;
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+        showNotice('Could not clear saved settings from this browser.', 'danger');
+        return;
+    }
+    logoData = '';
+    staff = [];
+    document.getElementById('logoPreview').textContent = '🏪';
+    document.getElementById('logoFile').value = '';
+    document.getElementById('bizName').value = 'Solo Lab Cue Lounge';
+    document.getElementById('bizAddress').value = '123 Galle Road, Colombo 03, Sri Lanka';
+    document.getElementById('bizPhone').value = '077-1234567';
+    document.getElementById('bizEmail').value = 'sololab@example.com';
+    document.getElementById('snookerRate').value = '1000';
+    document.getElementById('poolRate').value = '800';
+    document.getElementById('currency').value = 'LKR';
+    document.getElementById('defaultDiscount').value = '0';
+    document.getElementById('taxRate').value = '0';
+    document.getElementById('taxInclusive').checked = true;
+    document.getElementById('quickSellOnSession').checked = false;
+    document.getElementById('autoBackup').checked = true;
+    document.getElementById('autoArchive').checked = false;
+    settings = collectSettings();
     renderStaff();
-    staffModal = window.bootstrap ? new bootstrap.Modal(document.getElementById('staffModal')) : null;
-    if (!staffModal) {
-        window.openAddStaffModal = () => showNotice('The staff dialog could not load. Check that Bootstrap is available.', 'danger');
-    }
-})();
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
+    showNotice('Saved settings cleared.');
+}
+
+document.getElementById('autoBackup').addEventListener('change', () => {
+    if (saveToStorage()) showNotice('Backup preference saved.');
+});
+document.getElementById('autoArchive').addEventListener('change', () => {
+    if (saveToStorage()) showNotice('Archive preference saved.');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    staffModal = new bootstrap.Modal(document.getElementById('staffModal'));
+    loadFromStorage();
+    renderStaff();
+});
+
