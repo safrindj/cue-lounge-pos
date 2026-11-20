@@ -35,8 +35,7 @@
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -46,7 +45,6 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
@@ -72,7 +70,7 @@ checkAuth();
         <div class="col-6">
             <div class="total-box">
                 <div class="small opacity-75">This Month</div>
-                <div class="h5 mb-0" id="monthTotal">Rs. 18,900</div>
+                <div class="h5 mb-0" id="monthTotal">Rs. 0</div>
             </div>
         </div>
     </div>
@@ -167,10 +165,10 @@ checkAuth();
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ==========================================
-// CONFIG
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+
+const EXPENSES_KEY = "cueclubExpenses";
 
 // Categories with icons
 const categories = {
@@ -183,41 +181,82 @@ const categories = {
     Other: { icon: "📝", color: "#95a5a6" }
 };
 
-// Sample Data
-let expenses = [
-    { id: "E001", date: new Date("2026-11-19"), desc: "Electricity Bill", category: "Utilities", amount: 850, notes: "" },
-    { id: "E002", date: new Date("2026-11-19"), desc: "Cleaning Items", category: "Supplies", amount: 350, notes: "" },
-    { id: "E003", date: new Date("2026-11-18"), desc: "Rent — November", category: "Rent", amount: 8000, notes: "" },
-    { id: "E004", date: new Date("2026-11-17"), desc: "Water Bill", category: "Utilities", amount: 420, notes: "" },
-    { id: "E005", date: new Date("2026-11-15"), desc: "Internet Bill", category: "Utilities", amount: 680, notes: "" },
-    { id: "E006", date: new Date("2026-11-12"), desc: "Cue Chalk Bulk Order", category: "Supplies", amount: 1200, notes: "" },
-    { id: "E007", date: new Date("2026-11-10"), desc: "Table Maintenance", category: "Maintenance", amount: 1500, notes: "Cloth replacement" },
-    { id: "E008", date: new Date("2026-11-01"), desc: "Part-time Staff Wages", category: "Wages", amount: 5000, notes: "" }
-];
-
+let expenses = [];
 let expenseModal, deleteModal;
 let deleteTargetId = null;
 
-// ==========================================
+function loadExpenses() {
+    try {
+        const saved = localStorage.getItem(EXPENSES_KEY);
+        const parsed = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(parsed)) {
+            expenses = [];
+            return;
+        }
+
+        expenses = parsed.reduce((valid, entry, index) => {
+            if (!entry || typeof entry !== "object") return valid;
+
+            const amount = Number(entry.amount);
+            const dateValue = entry.date;
+            let date;
+
+            // Expense dates come from a date-only input; interpret ISO dates as local calendar dates.
+            if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+                const [, year, month, day] = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                date = new Date(Number(year), Number(month) - 1, Number(day));
+                if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day)) {
+                    return valid;
+                }
+            } else {
+                date = new Date(dateValue);
+            }
+
+            if (!Number.isFinite(amount) || amount < 0 || Number.isNaN(date.getTime())) return valid;
+
+            valid.push({
+                ...entry,
+                id: entry.id == null || entry.id === "" ? `legacy-${index}` : String(entry.id),
+                date,
+                desc: String(entry.desc ?? ""),
+                category: String(entry.category || "Other"),
+                amount,
+                notes: String(entry.notes ?? "")
+            });
+            return valid;
+        }, []);
+    } catch(e) {
+        expenses = [];
+    }
+}
+
+function saveExpenses() {
+    localStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
+    // Optional: Sync to Google Sheets
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'saveExpenses', items: expenses })
+        }).catch(()=>{});
+    }
+}
+
 // INIT
-// ==========================================
 window.onload = function() {
     expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     
+    loadExpenses();
     document.getElementById("expDate").valueAsDate = new Date();
     
     renderCategoryBreakdown();
     renderTransactions();
 };
 
-// ==========================================
 // CATEGORY BREAKDOWN
-// ==========================================
 function renderCategoryBreakdown() {
     const container = document.getElementById("categoryBreakdown");
     
-    // Calculate totals by category
     const catTotals = {};
     let grandTotal = 0;
     
@@ -237,7 +276,7 @@ function renderCategoryBreakdown() {
         container.innerHTML += `
             <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span>${icon} ${cat}</span>
+                    <span>${icon} ${escapeHTML(cat)}</span>
                     <span class="fw-bold">Rs. ${amount.toLocaleString()}</span>
                 </div>
                 <div class="progress-bar-custom">
@@ -247,12 +286,10 @@ function renderCategoryBreakdown() {
         `;
     });
     
-    document.getElementById("monthTotal").textContent = "Rs. " + grandTotal.toLocaleString();
+    renderTotals();
 }
 
-// ==========================================
 // TRANSACTION LIST
-// ==========================================
 function renderTransactions() {
     const container = document.getElementById("transactionList");
     
@@ -268,7 +305,7 @@ function renderTransactions() {
     
     // Group by date
     const grouped = {};
-    [...expenses].sort((a, b) => b.date - a.date).forEach(e => {
+    [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(e => {
         const dateKey = formatDateShort(e.date);
         if (!grouped[dateKey]) grouped[dateKey] = [];
         grouped[dateKey].push(e);
@@ -293,10 +330,10 @@ function renderTransactions() {
                     <div class="text-end">
                         <div class="expense-amount">Rs. ${e.amount.toLocaleString()}</div>
                         <div>
-                            <button class="btn-sm-action btn-edit" data-action="edit" data-id="${escapeHTML(e.id)}" title="Edit" aria-label="Edit ${escapeHTML(e.desc)}">
+                            <button class="btn-sm-action btn-edit" data-action="edit" data-id="${escapeHTML(e.id)}" title="Edit">
                                 <i class="fas fa-pen"></i>
                             </button>
-                            <button class="btn-sm-action btn-delete" data-action="delete" data-id="${escapeHTML(e.id)}" title="Delete" aria-label="Delete ${escapeHTML(e.desc)}">
+                            <button class="btn-sm-action btn-delete" data-action="delete" data-id="${escapeHTML(e.id)}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -307,9 +344,28 @@ function renderTransactions() {
     });
 }
 
-// ==========================================
+function renderTotals() {
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const weekTotal = expenses.reduce((total, expense) => {
+        const expDate = new Date(expense.date);
+        return expDate >= startOfWeek && expDate <= now ? total + expense.amount : total;
+    }, 0);
+    
+    const monthTotal = expenses.reduce((total, expense) => {
+        const expDate = new Date(expense.date);
+        return expDate.getFullYear() === now.getFullYear() && expDate.getMonth() === now.getMonth()
+            ? total + expense.amount : total;
+    }, 0);
+
+    document.getElementById("weekTotal").textContent = `Rs. ${weekTotal.toLocaleString()}`;
+    document.getElementById("monthTotal").textContent = `Rs. ${monthTotal.toLocaleString()}`;
+}
+
 // MODAL ACTIONS
-// ==========================================
 function openAddModal() {
     document.getElementById("modalTitle").textContent = "Add Expense";
     document.getElementById("editExpenseId").value = "";
@@ -327,111 +383,8 @@ function editExpense(id) {
 
     document.getElementById("modalTitle").textContent = "Edit Expense";
     document.getElementById("editExpenseId").value = expense.id;
-    document.getElementById("expDate").value = toInputDate(expense.date);
+    document.getElementById("expDate").value = toInputDate(new Date(expense.date));
     document.getElementById("expDesc").value = expense.desc;
     document.getElementById("expCategory").value = expense.category;
     document.getElementById("expAmount").value = expense.amount;
-    document.getElementById("expNotes").value = expense.notes || "";
-    expenseModal.show();
-}
-
-function saveExpense() {
-    const dateValue = document.getElementById("expDate").value;
-    const desc = document.getElementById("expDesc").value.trim();
-    const category = document.getElementById("expCategory").value;
-    const amount = Number(document.getElementById("expAmount").value);
-    const notes = document.getElementById("expNotes").value.trim();
-
-    if (!dateValue || !desc || !Number.isFinite(amount) || amount <= 0) {
-        alert("Please enter a date, description, and an amount greater than zero.");
-        return;
-    }
-
-    const id = document.getElementById("editExpenseId").value;
-    const expense = { id: id || `E${Date.now()}`, date: parseInputDate(dateValue), desc, category, amount, notes };
-    const existingIndex = expenses.findIndex(item => item.id === id);
-    if (existingIndex >= 0) expenses[existingIndex] = expense;
-    else expenses.push(expense);
-
-    expenseModal.hide();
-    renderCategoryBreakdown();
-    renderTransactions();
-}
-
-function openDeleteModal(id, info) {
-    deleteTargetId = id;
-    document.getElementById("deleteInfo").textContent = info;
-    deleteModal.show();
-}
-
-function confirmDelete() {
-    if (deleteTargetId === null) return;
-    expenses = expenses.filter(item => item.id !== deleteTargetId);
-    deleteTargetId = null;
-    deleteModal.hide();
-    renderCategoryBreakdown();
-    renderTransactions();
-}
-
-function parseInputDate(value) {
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day);
-}
-
-function toInputDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
-function formatDateShort(date) {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-function escapeHTML(value) {
-    return String(value).replace(/[&<>\"']/g, character => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-    })[character]);
-}
-
-function renderTotals() {
-    const now = new Date();
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const weekTotal = expenses.reduce((total, expense) =>
-        expense.date >= startOfWeek && expense.date <= now ? total + expense.amount : total, 0);
-    const monthTotal = expenses.reduce((total, expense) =>
-        expense.date.getFullYear() === now.getFullYear() && expense.date.getMonth() === now.getMonth()
-            ? total + expense.amount : total, 0);
-
-    document.getElementById("weekTotal").textContent = `Rs. ${weekTotal.toLocaleString()}`;
-    document.getElementById("monthTotal").textContent = `Rs. ${monthTotal.toLocaleString()}`;
-}
-
-// Use delegated actions so descriptions and IDs are never inserted into inline JavaScript.
-document.getElementById("transactionList").addEventListener("click", event => {
-    const button = event.target.closest("button[data-action]");
-    if (!button) return;
-    const expense = expenses.find(item => item.id === button.dataset.id);
-    if (!expense) return;
-
-    if (button.dataset.action === "edit") editExpense(expense.id);
-    if (button.dataset.action === "delete") {
-        openDeleteModal(expense.id, `${expense.desc} — Rs. ${expense.amount.toLocaleString()}`);
-    }
-});
-
-// Keep totals refreshed whenever the expense data changes.
-const originalRenderCategoryBreakdown = renderCategoryBreakdown;
-renderCategoryBreakdown = function() {
-    originalRenderCategoryBreakdown();
-    renderTotals();
-};
-
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
+    document.getElementById
