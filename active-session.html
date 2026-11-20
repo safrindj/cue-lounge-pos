@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE ht<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -119,6 +119,9 @@ checkAuth();
 
 <script src="app-settings.js"></script>
 <script>
+// ✅ Your Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+
 const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
 const BILLS_KEY = "cueclubBills";
 const PRODUCTS_KEY = "cueclub-products";
@@ -129,7 +132,7 @@ const expandedIds = new Set();
 
 function loadSessions(){ try { sessions = JSON.parse(localStorage.getItem(ACTIVE_SESSIONS_KEY) || "[]") || []; } catch(e){ sessions = []; } }
 function saveSessions(){ localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions)); }
-function money(n){ return "Rs. " + Number(n || 0).toFixed(2); }
+function money(n){ return curSym() + Number(n || 0).toFixed(2); }
 function curSym(){ return (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) || "Rs. "; }
 function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
 function closeModal(id){ document.getElementById(id).classList.remove("show"); }
@@ -179,6 +182,7 @@ function productTotal(s){ return (s.players||[]).reduce((t,p)=>t+playerSubtotal(
 
 function render(){
     loadSessions();
+    injectCustomerDatalist();
     const grid = document.getElementById("sessionsGrid");
     const empty = document.getElementById("emptyState");
     document.getElementById("summaryLine").textContent =
@@ -206,7 +210,7 @@ function render(){
             });
             billDetail += '<div class="d-flex justify-content-between mt-2"><span class="text-muted">Table charge (so far)</span><span>'+money(tableCharge(s))+'</span></div>'
                        +  '<div class="d-flex justify-content-between"><span class="text-muted">Products / extras</span><span>'+money(prod)+'</span></div>'
-                       +  '<div class="d-flex justify-content-between fw-bold grand mt-1"><span>TOTAL (so far)</span><span data-grand="'+s.id+'" data-prod="'+prod+'">'+money(tableCharge(s)+prod)+'</span></div></div>';
+                       +  '<div class="d-flex justify-content-between fw-bold grand mt-1"><span>TOTAL (so far)</span><span>'+money(tableCharge(s)+prod)+'</span></div></div>';
         }
 
         return '<div class="session-card '+(s.isPaused?"paused":"")+'" data-id="'+s.id+'">'
@@ -220,159 +224,191 @@ function render(){
             +   '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">'
             +     '<div class="timer-display" data-timer="'+s.id+'">00:00:00</div>'
             +     '<div class="text-end"><div class="text-muted small">Table · Extras · <b>Total</b></div>'
-            +       '<div><span class="text-muted" data-tablechg="'+s.id+'">Rs.0.00</span> · <span class="text-muted">'+money(prod)+'</span> · <span class="grand" data-grand="'+s.id+'" data-prod="'+prod+'">'+money(tableCharge(s)+prod)+'</span></div></div>'
+            +       '<div><span class="text-muted" data-tablechg="'+s.id+'">Rs.0.00</span> · <span class="text-muted">'+money(prod)+'</span> · <span class="grand">'+money(tableCharge(s)+prod)+'</span></div></div>'
             +   '</div>'
             +   '<div class="mb-3"><small class="text-muted d-block mb-1">Players ('+players.length+')</small>'+chips+'</div>'
             +   '<div class="d-flex gap-2 flex-wrap">'
-            +     '<button class="btn btn-add" onclick="openAddPlayer(\''+s.id+'\')"><i class="fas fa-user-plus me-1"></i>Player</button>'
-            +     '<button class="btn btn-item" onclick="openQuickSale(\''+s.id+'\')"><i class="fas fa-shopping-basket me-1"></i>Add Item</button>'
+            +     '<button class="btn btn-sm btn-outline-secondary" data-action="toggle-bill" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-receipt me-1"></i>'+(expanded?'Hide bill':'Bill details')+'</button>'
+            +     '<button class="btn btn-sm btn-add" data-action="add-player" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-user-plus me-1"></i>Add Player</button>'
+            +     '<button class="btn btn-sm btn-item" data-action="add-sale" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-shopping-basket me-1"></i>Add Item</button>'
             +     (s.isPaused
-                  ? '<button class="btn btn-resume flex-grow-1" onclick="togglePause(\''+s.id+'\')"><i class="fas fa-play me-1"></i>Resume</button>'
-                  : '<button class="btn btn-pause flex-grow-1" onclick="togglePause(\''+s.id+'\')"><i class="fas fa-pause me-1"></i>Pause</button>')
-            +     '<button class="btn btn-end flex-grow-1" onclick="endSession(\''+s.id+'\')"><i class="fas fa-stop-circle me-1"></i>End &amp; Bill</button>'
+                    ? '<button class="btn btn-sm btn-resume" data-action="pause" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-play me-1"></i>Resume</button>'
+                    : '<button class="btn btn-sm btn-pause" data-action="pause" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-pause me-1"></i>Pause</button>')
+            +     '<button class="btn btn-sm btn-end" data-action="end" data-id="'+escapeHtml(s.id)+'"><i class="fas fa-stop me-1"></i>End Session</button>'
             +   '</div>'
-            +   '<button class="btn btn-sm btn-link text-muted p-0 mt-2" onclick="toggleBill(\''+s.id+'\')"><i class="fas '+(expanded?'fa-chevron-up':'fa-chevron-down')+' me-1"></i>'+(expanded?'Hide':'View')+' bill details'+(itemCount?(' ('+itemCount+' item'+(itemCount>1?'s':'')+')'):'')+'</button>'
-            +   billDetail
-            + '</div></div>';
+            + '</div>'
+            + billDetail
+            + '</div>';
     }).join("");
-    tick();
+    updateTimers();
 }
 
-function tick(){
-    sessions.forEach(s => {
-        const tEl = document.querySelector('[data-timer="'+s.id+'"]');
-        const tcEl = document.querySelector('[data-tablechg="'+s.id+'"]');
-        if (tEl) tEl.textContent = fmtDuration(elapsedMs(s));
-        if (tcEl) tcEl.textContent = money(tableCharge(s));
-        document.querySelectorAll('[data-grand="'+s.id+'"]').forEach(el => {
-            el.textContent = money(tableCharge(s) + Number(el.dataset.prod||0));
-        });
+function getSession(id){ return sessions.find(s => String(s.id) === String(id)); }
+function persistAndRender(){ saveSessions(); render(); }
+function updateTimers(){
+    document.querySelectorAll("[data-timer]").forEach(el => {
+        const s = getSession(el.getAttribute("data-timer"));
+        if (!s) return;
+        const charge = tableCharge(s);
+        el.textContent = fmtDuration(elapsedMs(s));
+        const tableEl = document.querySelector('[data-tablechg="'+CSS.escape(String(s.id))+'"]');
+        if (tableEl) tableEl.textContent = money(charge);
+        const totalEl = document.querySelector('[data-total="'+CSS.escape(String(s.id))+'"]');
+        if (totalEl) totalEl.textContent = money(charge + productTotal(s));
     });
 }
 
-function togglePause(id){
-    loadSessions();
-    const s = sessions.find(x=>x.id===id); if(!s) return;
-    if (s.isPaused){ s.isPaused=false; s.totalPausedDuration=(s.totalPausedDuration||0)+(Date.now()-new Date(s.pausedTime).getTime()); s.pausedTime=null; }
-    else { s.isPaused=true; s.pausedTime=new Date().toISOString(); }
-    saveSessions(); render();
-}
-
-function toggleBill(id){ expandedIds.has(id) ? expandedIds.delete(id) : expandedIds.add(id); render(); }
-
-/* ---------- ADD PLAYER mid-session ---------- */
 function openAddPlayer(id){
-    pendingSessionId = id;
-    const s = sessions.find(x=>x.id===id);
-    document.getElementById("apTable").textContent = s ? s.tableName : "—";
+    const s = getSession(id);
+    if (!s) return;
+    pendingSessionId = s.id;
+    document.getElementById("apTable").textContent = s.tableName || "Table";
     document.getElementById("apName").value = "";
     document.getElementById("mAddPlayer").classList.add("show");
-    setTimeout(()=>document.getElementById("apName").focus(), 60);
+    setTimeout(() => document.getElementById("apName").focus(), 0);
 }
 function confirmAddPlayer(){
-    const name = document.getElementById("apName").value.trim();
-    if (!name){ toast("Enter a player name"); return; }
-    loadSessions();
-    const s = sessions.find(x=>x.id===pendingSessionId); if(!s){ closeModal("mAddPlayer"); return; }
-    if (!s.players) s.players = [];
-    const key = name.toLowerCase();
-    if (key.indexOf("guest") !== 0) {
-        let dupTable = null;
-        sessions.forEach(x => (x.players||[]).forEach(p => { if (String(p.name||"").trim().toLowerCase() === key) dupTable = x.tableName; }));
-        if (dupTable){ alert("⚠️ " + name + " is already playing on " + dupTable + ". A player cannot be in two sessions at once."); return; }
-    }
-    s.players.push({ id:"P"+Date.now().toString(36), name:name, joinTime:new Date().toISOString(), items:[] });
-    saveSessions(); closeModal("mAddPlayer"); render();
-    toast("✓ "+name+" added to "+s.tableName);
+    const s = getSession(pendingSessionId);
+    const input = document.getElementById("apName");
+    const value = input.value.trim();
+    if (!s || !value){ input.focus(); toast("Enter a player name or mobile number."); return; }
+    let customer = null;
+    try {
+        const customers = window.loadCustomers ? window.loadCustomers() : [];
+        customer = customers.find(c => c && (String(c.name||"").toLowerCase() === value.toLowerCase() || String(c.mobile||"") === value)) || null;
+    } catch(e) { customer = null; }
+    const player = { id: "P"+Date.now(), name: customer && customer.name ? customer.name : value, items: [] };
+    if (customer && customer.mobile) player.mobile = customer.mobile;
+    s.players = s.players || [];
+    s.players.push(player);
+    closeModal("mAddPlayer");
+    pendingSessionId = null;
+    persistAndRender();
+    toast("Player added.");
 }
 
-/* ---------- QUICK SALE: charge item to an individual player ---------- */
 function openQuickSale(id){
-    pendingSessionId = id; pendingProduct = null;
-    const s = sessions.find(x=>x.id===id);
-    document.getElementById("qsTable").textContent = s ? s.tableName : "—";
-    const prods = loadProducts();
-    document.getElementById("qsProductGrid").innerHTML = prods.map(p => {
-        const safeName = escapeHtml(p.name).replace(/'/g, "&#39;");
-        return '<div class="col-4"><button class="prod-btn w-100" onclick="pickProduct(\''+p.id+'\',\''+safeName+'\','+p.price+',\''+(p.emoji||"📦")+'\')">'
-        + '<span class="emoji">'+(p.emoji||"📦")+'</span>'+escapeHtml(p.name)+'<br><small class="text-muted">'+curSym()+Number(p.price).toFixed(0)+'</small></button></div>';
-    }).join("");
+    const s = getSession(id);
+    if (!s) return;
+    if (!s.players || !s.players.length){ toast("Add a player before adding items."); return; }
+    pendingSessionId = s.id;
+    pendingProduct = null;
+    document.getElementById("qsTable").textContent = s.tableName || "Table";
     showQsProducts();
     document.getElementById("mQuickSale").classList.add("show");
 }
-function showQsProducts(){ document.getElementById("qsProducts").style.display=""; document.getElementById("qsPlayers").style.display="none"; }
-function pickProduct(id, name, price, emoji){
-    pendingProduct = { id, name, price, emoji };
-    loadSessions();
-    const s = sessions.find(x=>x.id===pendingSessionId);
-    if (!s || !s.players || s.players.length===0){ toast("Add at least one player first"); return; }
-    if (s.players.length === 1){ addProductToPlayer(0); return; }
-    document.getElementById("qsProdName").textContent = (emoji?emoji+" ":"") + name + " (" + curSym() + Number(price).toFixed(0) + ")";
-    document.getElementById("qsPlayerList").innerHTML = s.players.map((p,idx) =>
-        '<button class="btn btn-outline-primary w-100 mb-2 text-start" onclick="addProductToPlayer('+idx+')">'
-        + '<strong>🧑 '+escapeHtml(p.name)+'</strong><small class="text-muted d-block">Current bill: '+money(playerSubtotal(p))+'</small></button>'
-    ).join("");
-    document.getElementById("qsProducts").style.display="none";
-    document.getElementById("qsPlayers").style.display="";
-}
-function addProductToPlayer(playerIdx){
-    loadSessions();
-    const s = sessions.find(x=>x.id===pendingSessionId);
-    if (!s || !pendingProduct){ closeModal("mQuickSale"); return; }
-    const p = s.players[playerIdx];
-    if (!p){ closeModal("mQuickSale"); return; }
-    if (!p.items) p.items = [];
-    const existing = p.items.find(it => it.productId === pendingProduct.id);
-    if (existing){ existing.qty = Number(existing.qty||0)+1; }
-    else { p.items.push({ productId:pendingProduct.id, name:pendingProduct.name, price:pendingProduct.price, qty:1, time:new Date().toISOString() }); }
-    const pname = p.name;
-    saveSessions(); closeModal("mQuickSale"); render();
-    toast("✓ "+pendingProduct.name+" charged to "+pname);
+function showQsProducts(){
     pendingProduct = null;
+    document.getElementById("qsProducts").style.display = "block";
+    document.getElementById("qsPlayers").style.display = "none";
+    document.getElementById("qsTitle").innerHTML = '<i class="fas fa-shopping-basket me-2"></i>Add to Bill';
+    document.getElementById("qsProductGrid").innerHTML = loadProducts().map(p =>
+        '<div class="col-6"><button class="prod-btn w-100" data-product-id="'+escapeHtml(p.id)+'"><span class="emoji">'+escapeHtml(p.emoji)+'</span><b>'+escapeHtml(p.name)+'</b><br><small>'+money(p.price)+'</small></button></div>'
+    ).join("") || '<div class="col-12 text-muted small">No products available.</div>';
+}
+function chooseProduct(id){
+    const product = loadProducts().find(p => String(p.id) === String(id));
+    const s = getSession(pendingSessionId);
+    if (!product || !s) return;
+    pendingProduct = product;
+    document.getElementById("qsProducts").style.display = "none";
+    document.getElementById("qsPlayers").style.display = "block";
+    document.getElementById("qsProdName").textContent = product.name;
+    document.getElementById("qsTitle").innerHTML = '<i class="fas fa-user-tag me-2"></i>Choose Player';
+    document.getElementById("qsPlayerList").innerHTML = (s.players || []).map((p,i) =>
+        '<button class="btn btn-outline-primary w-100 text-start mb-2" data-player-index="'+i+'"><i class="fas fa-user me-2"></i>'+escapeHtml(p.name)+'<span class="float-end">'+money(playerSubtotal(p))+'</span></button>'
+    ).join("");
+}
+function chargeProduct(index){
+    const s = getSession(pendingSessionId);
+    const player = s && s.players && s.players[index];
+    if (!s || !player || !pendingProduct) return;
+    player.items = player.items || [];
+    player.items.push({ id: pendingProduct.id, name: pendingProduct.name, price: Number(pendingProduct.price), qty: 1 });
+    const name = pendingProduct.name;
+    pendingProduct = null;
+    closeModal("mQuickSale");
+    pendingSessionId = null;
+    persistAndRender();
+    toast(name+" added to the bill.");
 }
 
-/* ---------- END SESSION: save full bill (table + per-player items) ---------- */
+function togglePause(id){
+    const s = getSession(id);
+    if (!s) return;
+    if (s.isPaused){
+        const pausedAt = new Date(s.pausedTime).getTime();
+        if (Number.isFinite(pausedAt)) s.totalPausedDuration = Number(s.totalPausedDuration||0) + Math.max(0, Date.now()-pausedAt);
+        s.isPaused = false;
+        delete s.pausedTime;
+        toast("Session resumed.");
+    } else {
+        s.isPaused = true;
+        s.pausedTime = new Date().toISOString();
+        toast("Session paused.");
+    }
+    persistAndRender();
+}
 function endSession(id){
-    loadSessions();
-    const s = sessions.find(x=>x.id===id); if(!s) return;
-    const tc = tableCharge(s), prod = productTotal(s), grand = tc + prod;
-    const mins = Math.round(elapsedMs(s)/60000);
-    const itemsFlat = [];
-    (s.players||[]).forEach(p => (p.items||[]).forEach(it => itemsFlat.push({ player:p.name, name:it.name, price:it.price, qty:it.qty, lineTotal:it.price*it.qty })));
-    if (!confirm("End "+s.tableName+"?\nDuration: "+fmtDuration(elapsedMs(s))+" ("+mins+" min)\nTable: "+money(tc)+"  ·  Extras: "+money(prod)+"\nTOTAL: "+money(grand))) return;
-
-    // Hand off to the Billing page with per-player split data
-    const pending = {
-        billNo: "BILL-" + Date.now().toString(36).toUpperCase(),
-        sessionId: s.id,
-        tableName: s.tableName,
-        tableType: s.tableType || "",
-        hourlyRate: s.hourlyRate,
-        startTime: s.startTime,
-        endTime: new Date().toISOString(),
-        durationMin: mins,
-        tableCharge: Math.round(tc*100)/100,
-        productTotal: Math.round(prod*100)/100,
-        subtotal: Math.round(grand*100)/100,
-        openedBy: s.openedBy || "Staff",
-        players: (s.players||[]).map(p => ({
-            name: p.name,
-            items: (p.items||[]).map(it => ({ name: it.name, price: it.price, qty: it.qty, lineTotal: it.price*it.qty })),
-            itemsSubtotal: Math.round(playerSubtotal(p)*100)/100
-        }))
+    const s = getSession(id);
+    if (!s) return;
+    if (!window.confirm("End the session for "+(s.tableName||"this table")+"?")) return;
+    const duration = elapsedMs(s);
+    const table = tableCharge(s);
+    const extras = productTotal(s);
+    const bill = {
+        id: "B"+Date.now(), tableName: s.tableName || "Table", tableType: s.tableType || "",
+        startTime: s.startTime, endTime: new Date().toISOString(), durationMs: duration,
+        hourlyRate: Number(s.hourlyRate||0), tableCharge: table, players: s.players || [],
+        productsTotal: extras, total: table + extras
     };
-    localStorage.setItem("cueclubPendingBill", JSON.stringify(pending));
-    sessions = sessions.filter(x => x.id !== id);
+    try {
+        const bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || [];
+        bills.push(bill);
+        localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
+    } catch(e) { toast("Could not save the bill. Check available browser storage."); return; }
+    sessions = sessions.filter(item => String(item.id) !== String(s.id));
     saveSessions();
-    window.location.href = "Billing.html";
+    expandedIds.delete(s.id);
+    render();
+    toast("Session ended. Total: "+money(bill.total));
 }
 
-document.getElementById("apName").addEventListener("keydown", e => { if(e.key==="Enter") confirmAddPlayer(); });
+document.getElementById("sessionsGrid").addEventListener("click", event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const id = button.dataset.id;
+    switch (button.dataset.action){
+        case "toggle-bill":
+            if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id);
+            render();
+            break;
+        case "add-player": openAddPlayer(id); break;
+        case "add-sale": openQuickSale(id); break;
+        case "pause": togglePause(id); break;
+        case "end": endSession(id); break;
+    }
+});
+document.getElementById("qsProductGrid").addEventListener("click", event => {
+    const button = event.target.closest("button[data-product-id]");
+    if (button) chooseProduct(button.dataset.productId);
+});
+document.getElementById("qsPlayerList").addEventListener("click", event => {
+    const button = event.target.closest("button[data-player-index]");
+    if (button) chargeProduct(Number(button.dataset.playerIndex));
+});
+document.getElementById("apName").addEventListener("keydown", event => {
+    if (event.key === "Enter") confirmAddPlayer();
+});
+document.querySelectorAll(".modal-mask").forEach(mask => mask.addEventListener("click", event => {
+    if (event.target === mask) closeModal(mask.id);
+}));
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") document.querySelectorAll(".modal-mask.show").forEach(mask => closeModal(mask.id));
+});
+
 render();
-injectCustomerDatalist();
-if (window.attachAllPlayerAC) window.attachAllPlayerAC();
-setInterval(tick, 1000);
+setInterval(updateTimers, 1000);
 </script>
-<script src="sidebar.js"></script>
 </body>
 </html>
