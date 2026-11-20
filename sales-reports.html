@@ -45,8 +45,7 @@
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -56,7 +55,6 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
@@ -79,28 +77,27 @@ checkAuth();
             <option value="today" selected>📅 Today</option>
             <option value="week">📅 This Week</option>
             <option value="month">📅 This Month</option>
-            <option value="custom">📅 Custom Range</option>
         </select>
-        <span class="text-muted small" id="dateRange">19 Nov 2026</span>
+        <span class="text-muted small" id="dateRange"></span>
     </div>
 
     <!-- 💰 Revenue Summary -->
     <div class="row g-2 mb-3">
         <div class="col-4">
             <div class="stat-card">
-                <div class="stat-value" id="totalSales">18,450</div>
+                <div class="stat-value" id="totalSales">Rs. 0</div>
                 <div class="stat-label">Total Sales</div>
             </div>
         </div>
         <div class="col-4">
             <div class="stat-card">
-                <div class="stat-value text-primary" id="tableRevenue">14,200</div>
+                <div class="stat-value text-primary" id="tableRevenue">Rs. 0</div>
                 <div class="stat-label">Tables</div>
             </div>
         </div>
         <div class="col-4">
             <div class="stat-card">
-                <div class="stat-value text-success" id="productRevenue">4,250</div>
+                <div class="stat-value text-success" id="productRevenue">Rs. 0</div>
                 <div class="stat-label">Products</div>
             </div>
         </div>
@@ -112,24 +109,24 @@ checkAuth();
         
         <div class="d-flex justify-content-between mb-1">
             <span>Table Charges</span>
-            <span id="calcTable">Rs. 14,200.00</span>
+            <span id="calcTable">Rs. 0.00</span>
         </div>
         <div class="d-flex justify-content-between mb-1">
             <span>Product Sales</span>
-            <span id="calcProducts">Rs. 4,250.00</span>
+            <span id="calcProducts">Rs. 0.00</span>
         </div>
         <div class="d-flex justify-content-between mb-1 discount-line">
             <span>Less: Discounts Given</span>
-            <span>- Rs. 380.00</span>
+            <span id="calcDiscounts">− Rs. 0.00</span>
         </div>
         <div class="d-flex justify-content-between mb-1 expense-line">
             <span>Less: Expenses</span>
-            <span>- Rs. 1,200.00</span>
+            <span id="calcExpenses">− Rs. 0.00</span>
         </div>
         
         <div class="net-row d-flex justify-content-between fw-bold">
             <span>🟢 NET INCOME</span>
-            <span id="netIncome">Rs. 16,870.00</span>
+            <span id="netIncome">Rs. 0.00</span>
         </div>
     </div>
 
@@ -137,7 +134,7 @@ checkAuth();
     <h5 class="section-title mb-2"><i class="fas fa-star me-2"></i> Top Selling Items</h5>
     <div class="summary-card mb-4">
         <div id="topItemsList">
-            <!-- Rendered by JavaScript -->
+            <p class="text-muted small">Complete some sales to see top items.</p>
         </div>
     </div>
 
@@ -145,7 +142,7 @@ checkAuth();
     <h5 class="section-title mb-2"><i class="fas fa-chart-bar me-2"></i> Daily Trend (Last 7 Days)</h5>
     <div class="summary-card mb-4">
         <div id="dailyTrend">
-            <!-- Rendered by JavaScript -->
+            <p class="text-muted small">Data will appear as bills are recorded.</p>
         </div>
     </div>
 
@@ -162,7 +159,7 @@ checkAuth();
                 </tr>
             </thead>
             <tbody id="dailyTableBody">
-                <!-- Rendered by JavaScript -->
+                <tr><td colspan="4" class="text-center text-muted py-4">No data available yet.</td></tr>
             </tbody>
         </table>
     </div>
@@ -170,177 +167,216 @@ checkAuth();
 </div>
 
 <script>
-// ==========================================
-// CONFIG
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-// Sample Data
-const reportData = {
-    period: "today",
-    dateRange: "19 Nov 2026",
-    totalSales: 18450,
-    tableRevenue: 14200,
-    productRevenue: 4250,
-    discounts: 380,
-    expenses: 1200,
-    topItems: [
-        { name: "Coca-Cola", emoji: "🥤", quantity: 18, revenue: 4500, percent: 100 },
-        { name: "Hot Coffee", emoji: "☕", quantity: 12, revenue: 3600, percent: 80 },
-        { name: "Water Bottle", emoji: "💧", quantity: 15, revenue: 2250, percent: 50 },
-        { name: "Cue Chalk", emoji: "🧱", quantity: 10, revenue: 1000, percent: 22 },
-        { name: "Pepsi", emoji: "🥤", quantity: 8, revenue: 2000, percent: 44 }
-    ],
-    dailyTrend: [
-        { date: "13 Nov", revenue: 8400, sessions: 6 },
-        { date: "14 Nov", revenue: 12200, sessions: 8 },
-        { date: "15 Nov", revenue: 18600, sessions: 14 },
-        { date: "16 Nov", revenue: 15100, sessions: 11 },
-        { date: "17 Nov", revenue: 11800, sessions: 8 },
-        { date: "18 Nov", revenue: 13500, sessions: 9 },
-        { date: "19 Nov", revenue: 18450, sessions: 12, isToday: true }
-    ]
-};
+const BILLS_KEY = "cueclubBills";
+const EXPENSES_KEY = "cueclubExpenses";
+const PRODUCTS_KEY = "cueclubProducts";
 
-// ==========================================
-// INIT
-// ==========================================
-window.onload = function() {
-    renderTopItems();
-    renderDailyTrend();
-    renderDailyTable();
-};
+let currentPeriod = "today";
 
-// ==========================================
-// TOP SELLING ITEMS
-// ==========================================
-function renderTopItems() {
-    const container = document.getElementById("topItemsList");
-    container.innerHTML = "";
+// Format currency safely, including malformed values from local storage.
+function formatCurrency(amount) {
+    const value = Number(amount);
+    return "Rs. " + (Number.isFinite(value) ? value : 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+}
+
+function getRecordDate(record) {
+    for (const value of [record.savedAt, record.endTime, record.date]) {
+        if (value == null || value === '') continue;
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) return date;
+    }
+    return null;
+}
+
+// Get date range for selected period
+function getDateRange(period) {
+    const now = new Date();
+    let start, end, label;
+    const formatDate = d => d.toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric' });
     
-    reportData.topItems.forEach(item => {
+    if (period === "today") {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        label = formatDate(now);
+    } else if (period === "week") {
+        const day = now.getDay();
+        start = new Date(now);
+        start.setDate(now.getDate() - ((day + 6) % 7));
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        label = `${formatDate(start)} – ${formatDate(end)}`;
+    } else if (period === "month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        label = `${start.toLocaleDateString('en-LK', { month: 'long', year: 'numeric' })}`;
+    }
+    return { start, end, label };
+}
+
+// Load bills within date range
+function loadBillsInRange(start, end) {
+    try {
+        const bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]");
+        return bills.filter(b => {
+            const d = getRecordDate(b);
+            return d !== null && d >= start && d <= end;
+        });
+    } catch(e) { return []; }
+}
+
+// Load expenses within date range
+function loadExpensesInRange(start, end) {
+    try {
+        const exps = JSON.parse(localStorage.getItem(EXPENSES_KEY) || "[]");
+        return exps.filter(e => {
+            const d = new Date(e.date);
+            return !Number.isNaN(d.getTime()) && d >= start && d <= end;
+        });
+    } catch(e) { return []; }
+}
+
+// Calculate report data
+function calculateReport(period) {
+    const { start, end } = getDateRange(period);
+    const bills = loadBillsInRange(start, end);
+    const expenses = loadExpensesInRange(start, end);
+    
+    let tableRevenue = 0, productRevenue = 0, totalDiscounts = 0;
+    const productSales = {};
+    const dailyData = {};
+    
+    bills.forEach(b => {
+        const productTotal = Number(b.productTotal) || 0;
+        const subtotal = Number(b.subtotal) || 0;
+        const tableCharge = Math.max(0, subtotal - productTotal);
+        const discount = Number(b.discountAmount) || 0;
+        const grandTotal = Number(b.grandTotal) || Math.max(0, subtotal - discount);
+        
+        tableRevenue += tableCharge;
+        productRevenue += productTotal;
+        totalDiscounts += discount;
+        
+        // Aggregate by date
+        const billDate = getRecordDate(b);
+        if (billDate) {
+            const dateKey = `${billDate.getFullYear()}-${String(billDate.getMonth() + 1).padStart(2, '0')}-${String(billDate.getDate()).padStart(2, '0')}`;
+            if (!dailyData[dateKey]) {
+                dailyData[dateKey] = {
+                    revenue: 0,
+                    sessions: 0,
+                    date: billDate.toLocaleDateString('en-LK', { month: 'short', day: 'numeric' }),
+                    dateKey
+                };
+            }
+            dailyData[dateKey].revenue += grandTotal;
+            dailyData[dateKey].sessions += 1;
+        }
+        
+        // Track product sales
+        if (Array.isArray(b.items)) {
+            b.items.forEach(item => {
+                const name = String(item.name ?? 'Unnamed item');
+                const quantity = item.quantity == null ? 1 : Number(item.quantity);
+                const price = Number(item.price);
+                if (!Number.isFinite(quantity) || quantity <= 0) return;
+                if (!productSales[name]) {
+                    productSales[name] = { quantity: 0, revenue: 0, emoji: item.emoji || '📦' };
+                }
+                productSales[name].quantity += quantity;
+                productSales[name].revenue += (Number.isFinite(price) ? price : 0) * quantity;
+            });
+        }
+    });
+    
+    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const totalSales = tableRevenue + productRevenue;
+    const netIncome = totalSales - totalDiscounts - totalExpenses;
+    
+    return {
+        tableRevenue, productRevenue, totalSales, totalDiscounts, totalExpenses, netIncome,
+        productSales,
+        dailyTrend: Object.values(dailyData).sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+    };
+}
+
+// Render top selling items
+function renderTopItems(productSales) {
+    const container = document.getElementById("topItemsList");
+    if (!Object.keys(productSales).length) {
+        container.innerHTML = '<p class="text-muted small">No product sales in this period.</p>';
+        return;
+    }
+    
+    const sorted = Object.entries(productSales).sort((a, b) => b[1].revenue - a[1].revenue);
+    const maxRev = sorted[0][1].revenue;
+    
+    container.innerHTML = "";
+    sorted.forEach(([name, data]) => {
+        const percent = maxRev > 0 ? (data.revenue / maxRev) * 100 : 0;
         container.innerHTML += `
             <div class="item-row">
-                <span class="me-2">${item.emoji} ${item.name}</span>
+                <span class="me-2">${escapeHtml(data.emoji)} ${escapeHtml(name)}</span>
                 <div class="flex-grow-1 mx-3">
                     <div class="bar-wrapper">
-                        <div class="bar-fill bar-sales" style="width: ${item.percent}%;"></div>
+                        <div class="bar-fill bar-sales" style="width: ${percent}%;"></div>
                     </div>
                 </div>
                 <div class="text-end">
-                    <div class="small text-muted">${item.quantity} sold</div>
-                    <div class="fw-bold">Rs. ${item.revenue.toLocaleString()}</div>
+                    <div class="small text-muted">${data.quantity} sold</div>
+                    <div class="fw-bold">${formatCurrency(data.revenue)}</div>
                 </div>
             </div>
         `;
     });
 }
 
-// ==========================================
-// DAILY TREND BARS
-// ==========================================
-function renderDailyTrend() {
+// Render daily trend
+function renderDailyTrend(dailyTrend) {
     const container = document.getElementById("dailyTrend");
+    if (!dailyTrend.length) {
+        container.innerHTML = '<p class="text-muted small">No data available for this period.</p>';
+        return;
+    }
+    
+    const maxRev = Math.max(...dailyTrend.map(d => d.revenue)) || 1;
+    const todayStr = new Date().toLocaleDateString('en-LK', { month: 'short', day: 'numeric' });
+    
     container.innerHTML = "";
-    
-    // Find max revenue for scaling
-    const maxRev = Math.max(...reportData.dailyTrend.map(d => d.revenue));
-    
-    reportData.dailyTrend.forEach(day => {
+    dailyTrend.slice(-7).forEach(day => {
         const width = (day.revenue / maxRev) * 100;
-        
+        const isToday = day.date === todayStr;
         container.innerHTML += `
             <div class="bar-container">
                 <div class="bar-label">
-                    ${day.isToday ? '<span class="today-badge">TODAY</span> ' : ''}${day.date}
+                    ${isToday ? '<span class="today-badge">TODAY</span> ' : ''}${day.date}
                 </div>
                 <div class="bar-wrapper">
                     <div class="bar-fill bar-table" style="width: ${width}%;"></div>
                 </div>
-                <div class="bar-value">Rs. ${day.revenue.toLocaleString()}</div>
+                <div class="bar-value">${formatCurrency(day.revenue)}</div>
             </div>
         `;
     });
 }
 
-// ==========================================
-// DAILY SUMMARY TABLE
-// ==========================================
-function renderDailyTable() {
+// Render daily table
+function renderDailyTable(dailyTrend) {
     const tbody = document.getElementById("dailyTableBody");
-    tbody.innerHTML = "";
+    if (!dailyTrend.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No data available yet.</td></tr>';
+        return;
+    }
     
-    reportData.dailyTrend.forEach(day => {
-        const profit = Math.round(day.revenue * 0.92); // Simplified profit calc
-        tbody.innerHTML += `
-            <tr${day.isToday ? ' class="table-light"' : ''}>
-                <td>${day.date}${day.isToday ? ' <small class="today-badge">Today</small>' : ''}</td>
-                <td>${day.sessions}</td>
-                <td>Rs. ${day.revenue.toLocaleString()}</td>
-                <td class="text-profit">Rs. ${profit.toLocaleString()}</td>
-            </tr>
-        `;
-    });
-}
-
-// ==========================================
-// PERIOD & EXPORT
-// ==========================================
-function changePeriod() {
-    const period = document.getElementById("periodSelect").value;
-    // In real app, fetch data for selected period here
-    const periodLabels = {
-        today: "19 Nov 2026",
-        week: "13–19 Nov 2026",
-        month: "1–30 Nov 2026",
-        custom: "Select Date Range"
-    };
-    document.getElementById("dateRange").textContent = periodLabels[period];
-    alert(`✅ Period changed to: ${period.toUpperCase()}\n\nIn live version, data will refresh automatically.`);
-}
-
-function exportReport() {
-    const rows = [
-        ["Sales Report", reportData.dateRange],
-        [],
-        ["Metric", "Amount (Rs.)"],
-        ["Total Sales", reportData.totalSales],
-        ["Table Revenue", reportData.tableRevenue],
-        ["Product Revenue", reportData.productRevenue],
-        ["Discounts", reportData.discounts],
-        ["Expenses", reportData.expenses],
-        ["Net Income", reportData.totalSales - reportData.discounts - reportData.expenses],
-        [],
-        ["Top Selling Items"],
-        ["Item", "Quantity Sold", "Revenue (Rs.)"],
-        ...reportData.topItems.map(item => [item.name, item.quantity, item.revenue]),
-        [],
-        ["Daily Summary"],
-        ["Date", "Sessions", "Revenue (Rs.)", "Profit (Rs.)"],
-        ...reportData.dailyTrend.map(day => [
-            day.date,
-            day.sessions,
-            day.revenue,
-            Math.round(day.revenue * 0.92)
-        ])
-    ];
-
-    const csv = rows.map(row => row.map(value => {
-        const text = String(value ?? "");
-        return `"${text.replace(/"/g, '""')}"`;
-    }).join(",")).join("\r\n");
-    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `sales-report-${reportData.period}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-}
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
-
+    const todayStr = new Date().toLocaleDateString('en-LK', { month: 'short', day: 'numeric' });
+    tbody.innerHTML = "";
+    dailyTrend.slice(-7).forEach(day => {
