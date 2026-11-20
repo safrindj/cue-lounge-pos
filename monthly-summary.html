@@ -48,11 +48,13 @@
         .today-badge { background: var(--accent); color: var(--primary); font-weight: 600; border-radius: 8px; padding: 1px 6px; font-size: 0.65rem; margin-left: 6px; }
         .export-btn { background: var(--success); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 500; }
         .export-btn:hover { background: #218838; }
+        .profit-card.loss { background: linear-gradient(135deg, #fff0f0, #f8d7da); border-color: var(--danger); }
+        .profit-card.loss .profit-amount, .profit-card.loss .profit-margin { color: var(--danger); }
+        .profit-card.loss .profit-margin { background: #f8d7da; }
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -62,7 +64,6 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
@@ -93,21 +94,21 @@ checkAuth();
     <!-- 🟢 NET PROFIT HIGHLIGHT -->
     <div class="profit-card mb-4">
         <div class="h6 text-uppercase text-muted mb-2">💰 Net Profit This Month</div>
-        <div class="profit-amount" id="netProfitAmount">Rs. 317,100</div>
-        <div class="profit-margin" id="profitMargin">89.1% Profit Margin</div>
+        <div class="profit-amount" id="netProfitAmount">Rs. 0</div>
+        <div class="profit-margin" id="profitMargin">0% Profit Margin</div>
         
         <div class="summary-grid mt-4">
             <div class="summary-box">
                 <div class="summary-label">Revenue</div>
-                <div class="summary-value text-primary" id="summaryRevenue">Rs. 356,000</div>
+                <div class="summary-value text-primary" id="summaryRevenue">Rs. 0</div>
             </div>
             <div class="summary-box">
                 <div class="summary-label">Expenses</div>
-                <div class="summary-value text-warning" id="summaryExpenses">Rs. 38,900</div>
+                <div class="summary-value text-warning" id="summaryExpenses">Rs. 0</div>
             </div>
             <div class="summary-box">
                 <div class="summary-label">Profit</div>
-                <div class="summary-value text-success" id="summaryProfit">Rs. 317,100</div>
+                <div class="summary-value text-success" id="summaryProfit">Rs. 0</div>
             </div>
         </div>
     </div>
@@ -118,19 +119,19 @@ checkAuth();
         
         <div class="income-row">
             <span>🎱 Table Sales</span>
-            <span>Rs. 268,500</span>
+            <span id="incomeTable">Rs. 0</span>
         </div>
         <div class="income-row">
             <span>🥤 Product Sales</span>
-            <span>Rs. 84,200</span>
+            <span id="incomeProducts">Rs. 0</span>
         </div>
         <div class="income-row">
             <span>📝 Other Income</span>
-            <span>Rs. 3,300</span>
+            <span id="incomeOther">Rs. 0</span>
         </div>
         <div class="income-row">
             <span>🔹 Total Income</span>
-            <span>Rs. 356,000</span>
+            <span id="incomeTotal">Rs. 0</span>
         </div>
     </div>
 
@@ -144,7 +145,7 @@ checkAuth();
         
         <div class="income-row mt-2">
             <span>🔸 Total Expenses</span>
-            <span>Rs. 38,900</span>
+            <span id="expenseTotal">Rs. 0</span>
         </div>
     </div>
 
@@ -159,164 +160,284 @@ checkAuth();
     <!-- 💡 Quick Insights -->
     <div class="section-card mb-4" style="background: #fff9e8; border-left: 3px solid var(--accent);">
         <h6 class="mb-2"><i class="fas fa-lightbulb me-2"></i> Quick Insights</h6>
-        <ul class="mb-0 small">
-            <li>📈 <strong>Profit up 3.6%</strong> vs last month (+Rs. 11,100)</li>
-            <li>🥤 Product sales hit <strong>all-time high</strong> this month (Rs. 84,200)</li>
-            <li>🏠 Rent is your largest fixed expense — <strong>20.6% of total expenses</strong></li>
-            <li>💡 Electricity/utilities increased — consider checking usage</li>
+        <ul class="mb-0 small" id="insightsList">
+            <li>📈 Data will populate as bills and expenses are recorded</li>
         </ul>
     </div>
 
 </div>
 
 <script>
-// ==========================================
-// CONFIG & DATA
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-// Monthly Data
-const monthlyData = {
-    currentMonth: {
-        name: "November 2026",
-        income: { table: 268500, products: 84200, other: 3300 },
-        expenses: {
-            Rent: 8000,
-            Utilities: 4800,
-            Supplies: 3200,
-            Wages: 16000,
-            Marketing: 1500,
-            Maintenance: 2500,
-            Other: 2900
-        }
-    },
-    lastSixMonths: [
-        { month: "Jun", revenue: 280000, expenses: 38000, profit: 242000, isCurrent: false },
-        { month: "Jul", revenue: 310000, expenses: 39000, profit: 271000, isCurrent: false },
-        { month: "Aug", revenue: 335000, expenses: 39000, profit: 296000, isCurrent: false },
-        { month: "Sep", revenue: 305000, expenses: 38000, profit: 267000, isCurrent: false },
-        { month: "Oct", revenue: 345000, expenses: 39000, profit: 306000, isCurrent: false },
-        { month: "Nov", revenue: 356000, expenses: 38900, profit: 317100, isCurrent: true }
-    ]
-};
+const BILLS_KEY = "cueclubBills";
+const EXPENSES_KEY = "cueclubExpenses";
 
-// ==========================================
-// CALCULATIONS
-// ==========================================
-function calculateTotals() {
-    const income = monthlyData.currentMonth.income;
-    const totalIncome = income.table + income.products + income.other;
+let currentMonth = "nov2026";
+let showTrendChart = false;
+
+// Format currency
+function formatCurrency(amount) {
+    return "Rs. " + Number(amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Get date range for selected month
+function getMonthDateRange(monthKey) {
+    const [year, month] = {
+        nov2026: [2026, 10], oct2026: [2026, 9], sep2026: [2026, 8], aug2026: [2026, 7]
+    }[monthKey] || [new Date().getFullYear(), new Date().getMonth()];
     
-    const expenses = monthlyData.currentMonth.expenses;
-    const totalExpenses = Object.values(expenses).reduce((a, b) => a + b, 0);
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 1);
+    const monthName = start.toLocaleDateString('en-LK', { month: 'long', year: 'numeric' });
+    return { start, end, monthName };
+}
+
+// Load and calculate monthly data from localStorage
+function loadMonthlyData(monthKey) {
+    const { start, end } = getMonthDateRange(monthKey);
+    let tableIncome = 0, productIncome = 0, otherIncome = 0;
+
+    readStoredList(BILLS_KEY).forEach(bill => {
+        if (!bill || typeof bill !== "object") return;
+        const billDate = new Date(bill.savedAt || bill.endTime || bill.date);
+        if (Number.isNaN(billDate.getTime()) || billDate < start || billDate >= end) return;
+        const amounts = getBillAmounts(bill);
+        tableIncome += amounts.table;
+        productIncome += amounts.products;
+    });
+
+    const expenses = Object.create(null);
+    let totalExpenses = 0;
+    readStoredList(EXPENSES_KEY).forEach(exp => {
+        if (!exp || typeof exp !== "object") return;
+        const expDate = new Date(exp.date);
+        if (Number.isNaN(expDate.getTime()) || expDate < start || expDate >= end) return;
+        const amount = Number(exp.amount);
+        if (!Number.isFinite(amount)) return;
+        const category = String(exp.category || "Uncategorized");
+        expenses[category] = (expenses[category] || 0) + amount;
+        totalExpenses += amount;
+    });
     
+    const totalIncome = tableIncome + productIncome + otherIncome;
     const netProfit = totalIncome - totalExpenses;
     const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
     
-    return { totalIncome, totalExpenses, netProfit, profitMargin };
+    return {
+        income: { table: tableIncome, products: productIncome, other: otherIncome },
+        expenses,
+        totalIncome,
+        totalExpenses,
+        netProfit,
+        profitMargin
+    };
 }
 
-// ==========================================
-// RENDER EXPENSE BARS
-// ==========================================
-function renderExpenseBars() {
+// Calculate last 6 months trend
+function loadTrendData() {
+    const months = [];
+    const { start: selectedStart } = getMonthDateRange(currentMonth);
+    const bills = readStoredList(BILLS_KEY);
+    const expenseList = readStoredList(EXPENSES_KEY);
+
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(selectedStart.getFullYear(), selectedStart.getMonth() - i, 1);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const monthName = d.toLocaleDateString('en-LK', { month: 'short', year: 'numeric' });
+        let revenue = 0, expenses = 0;
+
+        bills.forEach(bill => {
+            if (!bill || typeof bill !== "object") return;
+            const billDate = new Date(bill.savedAt || bill.endTime || bill.date);
+            if (Number.isNaN(billDate.getTime()) || billDate < d || billDate >= end) return;
+            const amounts = getBillAmounts(bill);
+            revenue += amounts.table + amounts.products;
+        });
+
+        expenseList.forEach(exp => {
+            if (!exp || typeof exp !== "object") return;
+            const expenseDate = new Date(exp.date);
+            const amount = Number(exp.amount);
+            if (Number.isNaN(expenseDate.getTime()) || !Number.isFinite(amount) || expenseDate < d || expenseDate >= end) return;
+            expenses += amount;
+        });
+
+        months.push({
+            month: monthName,
+            revenue,
+            expenses,
+            profit: revenue - expenses,
+            isCurrent: d.getFullYear() === selectedStart.getFullYear() && d.getMonth() === selectedStart.getMonth()
+        });
+    }
+    return months;
+}
+
+// Render expense bars
+function renderExpenseBars(expenses, totalExp) {
     const container = document.getElementById("expenseBars");
-    const expenses = monthlyData.currentMonth.expenses;
-    const totalExp = Object.values(expenses).reduce((a, b) => a + b, 0);
-    
     container.innerHTML = "";
     
+    if (!Object.keys(expenses).length) {
+        container.innerHTML = '<p class="text-muted small">No expenses recorded this month.</p>';
+        return;
+    }
+    
     Object.entries(expenses).forEach(([name, amount]) => {
-        const percent = totalExp > 0 ? (amount / totalExp) * 100 : 0;
-        container.innerHTML += `
-            <div class="bar-row">
-                <div class="bar-label">${name}</div>
-                <div class="bar-wrapper">
-                    <div class="bar-fill bar-expense" style="width: ${percent}%;"></div>
-                </div>
-                <div class="bar-value">Rs. ${amount.toLocaleString()}</div>
-            </div>
-        `;
+        const percent = totalExp > 0 ? Math.max(0, Math.min(100, (amount / totalExp) * 100)) : 0;
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        const label = document.createElement("div");
+        label.className = "bar-label";
+        label.textContent = name;
+        const wrapper = document.createElement("div");
+        wrapper.className = "bar-wrapper";
+        const fill = document.createElement("div");
+        fill.className = "bar-fill bar-expense";
+        fill.style.width = `${percent}%`;
+        wrapper.appendChild(fill);
+        const value = document.createElement("div");
+        value.className = "bar-value";
+        value.textContent = formatCurrency(amount);
+        row.append(label, wrapper, value);
+        container.appendChild(row);
     });
 }
 
-// ==========================================
-// RENDER MONTHLY TREND
-// ==========================================
+// Render monthly trend
 function renderMonthlyTrend() {
     const container = document.getElementById("monthlyTrend");
-    const maxRevenue = Math.max(...monthlyData.lastSixMonths.map(m => m.revenue));
+    const trendData = loadTrendData();
+    const maxRevenue = Math.max(...trendData.map(m => m.revenue)) || 1;
     
     container.innerHTML = "";
     
-    monthlyData.lastSixMonths.forEach(item => {
-        const revWidth = (item.revenue / maxRevenue) * 100;
+    trendData.forEach(item => {
+        const revWidth = Math.max(0, Math.min(100, (item.revenue / maxRevenue) * 100));
         container.innerHTML += `
             <div class="monthly-trend-item">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="month-name">${item.month}${item.isCurrent ? '<span class="today-badge">THIS MONTH</span>' : ''}</span>
-                    <span class="text-success fw-bold">Profit: Rs. ${item.profit.toLocaleString()}</span>
+                    <span class="month-name">${item.month}${item.isCurrent ? '<span class="today-badge">SELECTED</span>' : ''}</span>
+                    <span class="${item.profit < 0 ? 'text-danger' : 'text-success'} fw-bold">Profit: ${formatCurrency(item.profit)}</span>
                 </div>
                 <div class="bar-row" style="margin: 0;">
                     <div class="bar-label" style="width: 40px; font-size: 0.75rem;">Rev</div>
                     <div class="bar-wrapper" style="height: 12px;">
                         <div class="bar-fill bar-income" style="width: ${revWidth}%;"></div>
                     </div>
-                    <div class="bar-value" style="font-size: 0.75rem;">Rs. ${(item.revenue/1000).toFixed(0)}k</div>
+                    <div class="bar-value" style="font-size: 0.75rem;">${formatCurrency(item.revenue)}</div>
                 </div>
             </div>
         `;
     });
 }
 
-// ==========================================
-// INIT
-// ==========================================
-window.onload = function() {
-    renderExpenseBars();
-    renderMonthlyTrend();
-};
+// Keep monthly and trend revenue calculations identical.
+function getBillAmounts(bill) {
+    const subtotalValue = Number(bill.subtotal);
+    const grandTotalValue = Number(bill.grandTotal);
+    const productValue = Number(bill.productTotal);
+    const subtotal = Number.isFinite(subtotalValue)
+        ? subtotalValue
+        : (Number.isFinite(grandTotalValue) ? grandTotalValue : 0);
+    const products = Number.isFinite(productValue) ? productValue : 0;
+    return { table: Math.max(0, subtotal - products), products };
+}
 
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
+function readStoredList(key) {
+    try {
+        const value = JSON.parse(localStorage.getItem(key) || "[]");
+        return Array.isArray(value) ? value : [];
+    } catch (e) {
+        return [];
+    }
+}
+
 function changeMonth() {
-    const month = document.getElementById("monthSelect").value;
-    alert(`✅ Switched to: ${month}\n\nData would refresh in live version`);
+    currentMonth = document.getElementById("monthSelect").value;
+    renderReport();
 }
 
 function toggleTrendView() {
-    alert("📊 Trend view toggled\n\nIn live version, switches between Chart / List view");
+    showTrendChart = !showTrendChart;
+    document.getElementById("trendContainer").hidden = !showTrendChart;
+    document.getElementById("trendLabel").textContent = showTrendChart ? "Hide trend" : "Show trend";
+}
+
+function renderInsights(data) {
+    const list = document.getElementById("insightsList");
+    list.replaceChildren();
+    const entries = Object.entries(data.expenses).sort((a, b) => b[1] - a[1]);
+    const insights = [];
+
+    if (data.totalIncome === 0 && data.totalExpenses === 0) {
+        insights.push("No bills or expenses recorded for this month yet.");
+    } else {
+        insights.push(`Profit margin is ${data.profitMargin}%.`);
+        if (entries.length) insights.push(`${entries[0][0]} is the largest expense (${formatCurrency(entries[0][1])}).`);
+        if (data.netProfit < 0) insights.push("Expenses are higher than income this month.");
+    }
+
+    insights.forEach(text => {
+        const item = document.createElement("li");
+        item.textContent = text;
+        list.appendChild(item);
+    });
+}
+
+function renderReport() {
+    const data = loadMonthlyData(currentMonth);
+    document.getElementById("netProfitAmount").textContent = formatCurrency(data.netProfit);
+    document.getElementById("profitMargin").textContent = `${data.profitMargin}% Profit Margin`;
+    document.getElementById("summaryRevenue").textContent = formatCurrency(data.totalIncome);
+    document.getElementById("summaryExpenses").textContent = formatCurrency(data.totalExpenses);
+    document.getElementById("summaryProfit").textContent = formatCurrency(data.netProfit);
+    document.getElementById("incomeTable").textContent = formatCurrency(data.income.table);
+    document.getElementById("incomeProducts").textContent = formatCurrency(data.income.products);
+    document.getElementById("incomeOther").textContent = formatCurrency(data.income.other);
+    document.getElementById("incomeTotal").textContent = formatCurrency(data.totalIncome);
+    document.getElementById("expenseTotal").textContent = formatCurrency(data.totalExpenses);
+    document.querySelector(".profit-card").classList.toggle("loss", data.netProfit < 0);
+    renderExpenseBars(data.expenses, data.totalExpenses);
+    renderMonthlyTrend();
+    renderInsights(data);
 }
 
 function exportReport() {
-    const month = monthlyData.currentMonth;
-    const totals = calculateTotals();
+    const data = loadMonthlyData(currentMonth);
+    const { monthName } = getMonthDateRange(currentMonth);
     const rows = [
-        ["Monthly Summary", month.name],
-        ["Category", "Amount (Rs.)"],
-        ...Object.entries(month.income).map(([name, amount]) => [`Income: ${name}`, amount]),
-        ["Total Income", totals.totalIncome],
-        ...Object.entries(month.expenses).map(([name, amount]) => [`Expense: ${name}`, amount]),
-        ["Total Expenses", totals.totalExpenses],
-        ["Net Profit", totals.netProfit],
-        ["Profit Margin", `${totals.profitMargin}%`]
+        ["Monthly Summary", monthName],
+        ["Income category", "Amount"],
+        ["Table Sales", data.income.table],
+        ["Product Sales", data.income.products],
+        ["Other Income", data.income.other],
+        ["Total Income", data.totalIncome],
+        ["Expense category", "Amount"],
+        ...Object.entries(data.expenses),
+        ["Total Expenses", data.totalExpenses],
+        ["Net Profit", data.netProfit],
+        ["Profit Margin", `${data.profitMargin}%`]
     ];
     const csv = rows.map(row => row.map(value => {
-        const text = String(value).replace(/"/g, '""');
-        return `"${text}"`;
-    }).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+        let cell = String(value ?? "");
+        if (/^[=+@-]/.test(cell) && !/^-?\d+(\.\d+)?$/.test(cell)) cell = `'${cell}`;
+        return `"${cell.replace(/"/g, '""')}"`;
+    }).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `monthly-summary-${month.name.toLowerCase().replace(/\\s+/g, "-")}.csv`;
+    link.download = `cueclub-monthly-summary-${currentMonth}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
 }
+
+renderReport();
 </script>
-<script src="sidebar.js"></script>
 </body>
 </html>
