@@ -176,17 +176,17 @@
     <!-- Staff Selection -->
     <label class="form-label fw-semibold mb-2">Select Your Profile</label>
     <div class="staff-selector" id="staffSelector">
-        <div class="staff-option selected" data-staff="admin" data-pin="1234">
+        <div class="staff-option selected" data-staff="admin" data-pin="9161">
             <div class="role-dot dot-admin"></div>
             <div>
-                <div class="fw-semibold">M. Silva — Admin</div>
+                <div class="fw-semibold">Admin</div>
                 <div class="small text-muted">Full Access</div>
             </div>
         </div>
-        <div class="staff-option" data-staff="staff" data-pin="5678">
+        <div class="staff-option" data-staff="staff" data-pin="2131">
             <div class="role-dot dot-staff"></div>
             <div>
-                <div class="fw-semibold">S. Perera — Staff</div>
+                <div class="fw-semibold">Staff</div>
                 <div class="small text-muted">Sell & View Only</div>
             </div>
         </div>
@@ -249,8 +249,8 @@
 // ==========================================
 let selectedStaff = {
     id: "admin",
-    name: "M. Silva — Admin",
-    pin: "1234",
+    name: "Admin",
+    pin: "9161",
     role: "admin"
 };
 let enteredPin = "";
@@ -292,6 +292,7 @@ function inputPin(digit) {
     
     if (enteredPin.length === 4) {
         document.getElementById("loginBtn").disabled = false;
+        setTimeout(attemptLogin, 250); // auto-login on correct PIN — no button press needed
     }
 }
 
@@ -324,38 +325,26 @@ function updatePinDisplay() {
 // ==========================================
 function attemptLogin() {
     if (enteredPin.length !== 4) return;
-    
-    // Check PIN
-    if (enteredPin === selectedStaff.pin) {
-        // Store session
+    const PIN_ADMIN = "9161", PIN_STAFF = "2131";
+    let role = null, name = null;
+    if (enteredPin === PIN_ADMIN) { role = "admin"; name = "Admin"; }
+    else if (enteredPin === PIN_STAFF) { role = "staff"; name = "Staff"; }
+
+    if (role) {
         sessionStorage.setItem("cueclubLoggedIn", "true");
-        sessionStorage.setItem("currentStaff", JSON.stringify({
-            name: selectedStaff.name,
-            role: selectedStaff.role,
-            loginTime: new Date().toISOString()
-        }));
-        
-        // Success animation
-        document.getElementById("loginBtn").innerHTML = 
-            '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
+        sessionStorage.setItem("currentStaff", JSON.stringify({ name: name, role: role, loginTime: new Date().toISOString() }));
+        document.getElementById("loginBtn").innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
         document.getElementById("errorMsg").style.display = "none";
-        
-        setTimeout(() => {
-            window.location.href = "dashboard.html";
-        }, 800);
+        setTimeout(() => { window.location.href = "dashboard.html"; }, 500);
     } else {
-        // Show error
         document.getElementById("errorMsg").style.display = "block";
         document.getElementById("loginBtn").disabled = true;
-        
-        // Shake animation effect
         document.querySelector(".login-container").animate([
             { transform: 'translateX(-5px)' },
             { transform: 'translateX(5px)' },
             { transform: 'translateX(-5px)' },
             { transform: 'translateX(0)' }
         ], { duration: 300 });
-        
         clearPin();
     }
 }

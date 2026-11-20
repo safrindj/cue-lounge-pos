@@ -230,15 +230,7 @@ checkAuth();
 const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
 
 // Sample Bill Data
-let bills = [
-    { id: "BILL-0892", date: new Date("2026-11-19"), time: "18:45 - 21:00", table: "Table 05 — Snooker", duration: "2h 15m", customer: "Perera, K.", mobile: "071-9876543", customerId: "CUST-001", tableCharge: 1800, products: 650, productList: "2× Coke, 1× Water", subtotal: 2450, discountPercent: 10, discountAmount: 245, grandTotal: 2205, paidAmount: 2205, balance: 0, paymentMethod: "Cash", status: "paid" },
-    { id: "BILL-0891", date: new Date("2026-11-19"), time: "14:00 - 15:30", table: "Table 02 — Snooker", duration: "1h 30m", customer: "Walk-in Guest", mobile: "", customerId: "", tableCharge: 1200, products: 0, productList: "", subtotal: 1200, discountPercent: 0, discountAmount: 0, grandTotal: 1200, paidAmount: 1200, balance: 0, paymentMethod: "Cash", status: "paid" },
-    { id: "BILL-0890", date: new Date("2026-11-19"), time: "10:30 - 12:15", table: "Table 01 — Snooker", duration: "1h 45m", customer: "Jayasuriya, M.", mobile: "076-5551234", customerId: "CUST-003", tableCharge: 1000, products: 350, productList: "1× Coffee, 1× Chips", subtotal: 1350, discountPercent: 5, discountAmount: 67.50, grandTotal: 1282.50, paidAmount: 1282.50, balance: 0, paymentMethod: "Card", status: "paid" },
-    { id: "BILL-0889", date: new Date("2026-11-18"), time: "19:00 - 21:00", table: "Table 04 — Snooker", duration: "2h 00m", customer: "Fernando, R.", mobile: "", customerId: "", tableCharge: 1600, products: 0, productList: "", subtotal: 1600, discountPercent: 0, discountAmount: 0, grandTotal: 1600, paidAmount: 1000, balance: 600, paymentMethod: "Cash (Partial)", status: "pending" },
-    { id: "BILL-0888", date: new Date("2026-11-18"), time: "16:00 - 18:00", table: "Table 02 — Snooker", duration: "2h 00m", customer: "Silva, S.", mobile: "077-1234567", customerId: "CUST-002", tableCharge: 1200, products: 0, productList: "", subtotal: 1200, discountPercent: 10, discountAmount: 120, grandTotal: 1080, paidAmount: 1080, balance: 0, paymentMethod: "Cash", status: "paid" },
-    { id: "BILL-0887", date: new Date("2026-11-18"), time: "11:00 - 13:30", table: "Table 06 — Pool", duration: "2h 30m", customer: "Walk-in Guest", mobile: "", customerId: "", tableCharge: 1500, products: 420, productList: "2× Water, 1× Chocolate", subtotal: 1920, discountPercent: 0, discountAmount: 0, grandTotal: 1920, paidAmount: 0, balance: 1920, paymentMethod: "Credit", status: "credit" },
-    { id: "BILL-0886", date: new Date("2026-11-17"), time: "20:00 - 22:30", table: "Table 03 — Snooker", duration: "2h 30m", customer: "Perera, K.", mobile: "071-9876543", customerId: "CUST-001", tableCharge: 2000, products: 350, productList: "1× Coffee, 2× Chalk", subtotal: 2350, discountPercent: 10, discountAmount: 235, grandTotal: 2115, paidAmount: 2115, balance: 0, paymentMethod: "Cash", status: "paid" }
-];
+let bills = [];
 
 // ==========================================
 // BILL LIST, FILTERS & DETAILS

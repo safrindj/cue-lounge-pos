@@ -188,6 +188,10 @@ checkAuth();
                     <input type="text" id="newName" class="form-control" placeholder="e.g. Perera, K.">
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">Customer ID <span class="text-muted small">(auto-generated)</span></label>
+                    <input type="text" id="newCustId" class="form-control" readonly style="background:#f0f4ff;font-weight:600;">
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Mobile Number *</label>
                     <input type="tel" id="newMobile" class="form-control" placeholder="07X-XXXXXXX">
                 </div>
@@ -229,47 +233,16 @@ const loyaltyTiers = {
 };
 
 // Sample Data — replace with Google Sheets data later
-let customers = [
-    {
-        id: "CUST-001", name: "Perera, K.", mobile: "071-9876543", whatsapp: "071-9876543",
-        totalSpent: 21300, totalVisits: 32, points: 680, regDate: new Date("2026-01-15"),
-        history: [
-            { date: new Date("2026-11-19"), table: "Table 05", amount: 1650, billNo: "BILL-0892" },
-            { date: new Date("2026-11-15"), table: "Table 02", amount: 2100, billNo: "BILL-0875" },
-            { date: new Date("2026-11-10"), table: "Table 01", amount: 1450, billNo: "BILL-0850" },
-            { date: new Date("2026-11-02"), table: "Table 03", amount: 1900, billNo: "BILL-0810" },
-            { date: new Date("2026-10-28"), table: "Table 05", amount: 1700, billNo: "BILL-0785" }
-        ]
-    },
-    {
-        id: "CUST-002", name: "Silva, S.", mobile: "077-1234567", whatsapp: "",
-        totalSpent: 8450, totalVisits: 18, points: 240, regDate: new Date("2026-03-02"),
-        history: [
-            { date: new Date("2026-11-18"), table: "Table 02", amount: 1200, billNo: "BILL-0888" },
-            { date: new Date("2026-11-15"), table: "Table 03", amount: 2100, billNo: "BILL-0876" },
-            { date: new Date("2026-11-10"), table: "Table 01", amount: 950, billNo: "BILL-0845" }
-        ]
-    },
-    {
-        id: "CUST-003", name: "Jayasuriya, M.", mobile: "076-5551234", whatsapp: "076-5551234",
-        totalSpent: 2850, totalVisits: 7, points: 85, regDate: new Date("2026-08-20"),
-        history: [
-            { date: new Date("2026-11-19"), table: "Table 04", amount: 1350, billNo: "BILL-0893" },
-            { date: new Date("2026-11-05"), table: "Table 01", amount: 850, billNo: "BILL-0830" }
-        ]
-    },
-    {
-        id: "CUST-004", name: "Fernando, R.", mobile: "070-8889999", whatsapp: "",
-        totalSpent: 420, totalVisits: 2, points: 20, regDate: new Date("2026-11-01"),
-        history: [
-            { date: new Date("2026-11-10"), table: "Table 06", amount: 420, billNo: "BILL-0848" }
-        ]
-    }
-];
+let customers = [];
 
 let currentCustomerId = null;
 const CUSTOMERS_KEY = "cueclubCustomers";
 function saveCustomers(){ try { localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers)); } catch(e){} }
+function nextCustomerId(){
+    let max = 49; // first auto ID = P0050
+    customers.forEach(c => { const m = String(c && c.id ? c.id : "").match(/^P(\d+)$/); if (m) max = Math.max(max, parseInt(m[1], 10)); });
+    return "P" + String(max + 1).padStart(4, "0");
+}
 try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) customers = _savedCust; else saveCustomers(); } catch(e){ try { saveCustomers(); } catch(e2){} }
 let newCustomerModal;
 
@@ -411,6 +384,7 @@ function openNewCustomerModal() {
     ["newName", "newMobile", "newWhatsapp", "newNotes", "newManualDiscount"].forEach(id => {
         document.getElementById(id).value = "";
     });
+    document.getElementById("newCustId").value = nextCustomerId();
     newCustomerModal.show();
 }
 
@@ -433,7 +407,7 @@ function saveNewCustomer() {
         existing.manualDiscount = manualDiscount;
     } else {
         customers.unshift({
-            id: `CUST-${Date.now()}`,
+            id: document.getElementById("newCustId").value || nextCustomerId(),
             name,
             mobile,
             whatsapp: document.getElementById("newWhatsapp").value.trim() || mobile,
@@ -464,6 +438,7 @@ function editCustomer() {
     document.getElementById("newWhatsapp").value = customer.whatsapp || "";
     document.getElementById("newNotes").value = customer.notes || "";
     document.getElementById("newManualDiscount").value = (customer.manualDiscount != null ? customer.manualDiscount : "");
+    document.getElementById("newCustId").value = customer.id || nextCustomerId();
     newCustomerModal.show();
 }
 
