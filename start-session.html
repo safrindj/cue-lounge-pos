@@ -39,8 +39,7 @@
     </style>
 </head>
 <body>
-  <!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -50,8 +49,6 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
-
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center">
@@ -65,7 +62,7 @@ checkAuth();
 
     <!-- Step 1: Select Table -->
     <div class="mb-4">
-        <h5 class="mb-3"><span class="step-number">1</span>Select a Table</h5>
+        <h5 class="mb-3"><span class="step-number">1</span> Select a Table</h5>
         <div class="row g-3" id="tableList">
             <!-- Tables loaded by JavaScript -->
         </div>
@@ -73,7 +70,7 @@ checkAuth();
 
     <!-- Step 2: Add Players -->
     <div class="mb-4">
-        <h5 class="mb-3"><span class="step-number">2</span>Add Players</h5>
+        <h5 class="mb-3"><span class="step-number">2</span> Add Players</h5>
         <div id="playerContainer">
             <!-- Player rows added here -->
         </div>
@@ -84,7 +81,7 @@ checkAuth();
 
     <!-- Step 3: Start -->
     <div class="mt-5">
-        <h5 class="mb-3"><span class="step-number">3</span>Ready?</h5>
+        <h5 class="mb-3"><span class="step-number">3</span> Ready?</h5>
         <div id="summaryBox" class="bg-white rounded p-3 mb-3 d-none">
             <p class="mb-1"><strong>Table:</strong> <span id="selTable">—</span></p>
             <p class="mb-1"><strong>Rate:</strong> Rs. <span id="selRate">—</span>/hour</p>
@@ -99,15 +96,14 @@ checkAuth();
 
 <script src="app-settings.js"></script>
 <script>
-// ==========================================
-// CONFIG — Replace with your Web App URL later
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // e.g., https://script.google.com/macros/s/XXXX/exec
+// ✅ Google Apps Script Deployment URL — Paste your full URL here
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
 let selectedTable = null;
 let playerCount = 0;
+const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
 
-// Sample table data — will load from Google Sheets later
+// Table Data
 const tables = [
     { id: "T01", name: "Table 01", type: "Snooker", rate: 1000, status: "Available" },
     { id: "T02", name: "Table 02", type: "Snooker", rate: 1000, status: "Available" },
@@ -117,38 +113,54 @@ const tables = [
     { id: "T06", name: "Table 06", type: "Pool", rate: 800, status: "Available" }
 ];
 
-// ==========================================
-// INIT
-// Apply saved pricing from Settings
-const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
-function loadActiveSessions(){ try { return JSON.parse(localStorage.getItem(ACTIVE_SESSIONS_KEY) || "[]") || []; } catch(e){ return []; } }
-function currentStaffName(){ try { var s = JSON.parse(sessionStorage.getItem("currentStaff") || "{}"); return (s && s.username) || "Staff"; } catch(e){ return "Staff"; } }
+// Helper functions
+function loadActiveSessions(){
+    try {
+        const sessions = JSON.parse(localStorage.getItem(ACTIVE_SESSIONS_KEY) || "[]");
+        return Array.isArray(sessions) ? sessions.filter(s => s && typeof s === "object" && !Array.isArray(s)) : [];
+    } catch(e){ return []; }
+}
+
+function currentStaffName(){ 
+    try { 
+        var s = JSON.parse(sessionStorage.getItem("currentStaff") || "{}"); 
+        return (s && s.name) || "Staff"; 
+    } catch(e){ return "Staff"; } 
+}
+
 function refreshOccupied(){
     var active = loadActiveSessions();
-    tables.forEach(function(t){ t.status = active.some(function(s){ return s.tableId === t.id; }) ? "Occupied" : "Available"; });
-}
-function injectCustomerDatalist(){
-    if (document.getElementById("customerNames")) return;
-    var custs = (window.loadCustomers ? window.loadCustomers() : []);
-    var dl = document.createElement("datalist");
-    dl.id = "customerNames";
-    custs.forEach(function(c){
-        if (c && c.name) {
-            var o = document.createElement("option"); o.value = c.name; if (c.mobile) o.label = c.mobile; dl.appendChild(o);
-            if (c.mobile) { var o2 = document.createElement("option"); o2.value = c.mobile; o2.label = c.name; dl.appendChild(o2); }
-        }
+    tables.forEach(function(t){ 
+        t.status = active.some(function(s){ return s.tableId === t.id; }) ? "Occupied" : "Available"; 
     });
-    document.body.appendChild(dl);
 }
-try { tables.forEach(function (t) { t.rate = (window.APP_SETTINGS && APP_SETTINGS.rateForType) ? APP_SETTINGS.rateForType(t.type) : t.rate; }); } catch(e){}
+
+// Load custom rates from settings if available
+function loadRatesFromSettings() {
+    try {
+        const savedSettings = localStorage.getItem('cueclubSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            tables.forEach(table => {
+                const savedRate = table.type === "Snooker" ? settings.snookerRate : settings.poolRate;
+                const rate = Number(savedRate);
+                if (savedRate !== undefined && savedRate !== null && savedRate !== "" && Number.isFinite(rate) && rate > 0) {
+                    table.rate = rate;
+                }
+            });
+        }
+    } catch(e) {}
+}
+
+// INIT
 window.onload = function() {
+    loadRatesFromSettings();
     refreshOccupied();
-    injectCustomerDatalist();
     renderTables();
-    addPlayerRow(); // start with 1 player row
-    if (window.attachAllPlayerAC) window.attachAllPlayerAC();
+    addPlayerRow();
 };
 
+// Render Tables
 function renderTables() {
     const container = document.getElementById("tableList");
     container.innerHTML = "";
@@ -180,27 +192,19 @@ function renderTables() {
     });
 }
 
-// ==========================================
-// TABLE SELECTION
-// ==========================================
+// Table Selection
 function selectTable(id, name, rate) {
-    // Remove previous selection
     document.querySelectorAll('.table-card').forEach(card => card.classList.remove('selected'));
-    
-    // Mark selected
     selectedTable = { id, name, rate };
     document.getElementById(`card-${id}`).classList.add('selected');
     
-    // Update summary
     document.getElementById("selTable").textContent = name + " — " + (tables.find(t=>t.id===id)?.type || "");
     document.getElementById("selRate").textContent = rate;
     document.getElementById("summaryBox").classList.remove("d-none");
     updatePlayerCount();
 }
 
-// ==========================================
-// PLAYER ROWS
-// ==========================================
+// Player Rows
 function addPlayerRow() {
     playerCount++;
     const container = document.getElementById("playerContainer");
@@ -212,7 +216,7 @@ function addPlayerRow() {
     row.innerHTML = `
         <div class="flex-grow-1 me-2">
             <label class="small text-muted mb-1">Player ${playerCount} Name</label>
-            <input type="text" class="form-control player-name" placeholder="Enter name or mobile" list="customerNames" autocomplete="off">
+            <input type="text" class="form-control player-name" placeholder="Enter name or mobile">
         </div>
         <button class="remove-btn" onclick="removePlayerRow('${rowId}')">
             <i class="fas fa-times-circle"></i>
@@ -220,7 +224,6 @@ function addPlayerRow() {
     `;
     container.appendChild(row);
     updatePlayerCount();
-    if (window.attachAllPlayerAC) window.attachAllPlayerAC();
 }
 
 function removePlayerRow(rowId) {
@@ -238,17 +241,14 @@ function updatePlayerCount() {
     document.getElementById("selPlayers").textContent = count;
 }
 
-// ==========================================
-// START SESSION
-// ==========================================
+// Start Session
 function startSession() {
-    // Validate table selected
     if (!selectedTable) {
         alert("⚠️ Please select a table first");
         return;
     }
     
-    // Collect player names — at least one must be filled in
+    // Collect player names
     const players = [];
     let hasName = false;
     document.querySelectorAll('.player-name').forEach(input => {
@@ -258,64 +258,77 @@ function startSession() {
     });
     if (!hasName) { alert("⚠️ Please enter at least one player name"); return; }
 
-    // Block duplicate player: same person cannot be in two active sessions at once
+    // Check for duplicate players across active sessions
     const activeNow = loadActiveSessions();
+    const normalizePlayerName = name => String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
     const activeNames = [];
-    activeNow.forEach(s => (s.players||[]).forEach(p => activeNames.push(String(p.name||"").trim().toLowerCase())));
-    const seenHere = {};
-    for (let pi = 0; pi < players.length; pi++) {
-        const key = players[pi].trim().toLowerCase();
-        if (!key || key.indexOf("guest") === 0) continue;
-        if (seenHere[key]) { alert("⚠️ Duplicate player: " + players[pi] + " is added twice."); return; }
-        seenHere[key] = true;
-        if (activeNames.indexOf(key) !== -1) { alert("⚠️ " + players[pi] + " is already playing on another active table."); return; }
+    activeNow.forEach(s => {
+        if (!Array.isArray(s.players)) return;
+        s.players.forEach(p => {
+            if (p && typeof p === "object" && p.name) activeNames.push(normalizePlayerName(p.name));
+        });
+    });
+    const playerEntries = [];
+    document.querySelectorAll('.player-name').forEach(input => {
+        const name = input.value.trim();
+        playerEntries.push({ name, isGuest: !name });
+    });
+    for (const player of playerEntries) {
+        if (player.isGuest) continue;
+        const key = normalizePlayerName(player.name);
+        if (activeNames.indexOf(key) !== -1) {
+            alert("⚠️ " + player.name + " is already playing on another table.");
+            return;
+        }
     }
+    // Use a snapshot of the names that passed validation when building the session.
+    const validatedPlayers = playerEntries.map((player, i) => player.name || ("Guest " + (i + 1)));
 
-    // Block starting a table that already has a running session
-    const active = loadActiveSessions();
-    if (active.some(s => s.tableId === selectedTable.id)) {
+    // Check table already active
+    if (activeNow.some(s => s.tableId === selectedTable.id)) {
         alert("⚠️ This table already has a running session.");
         return;
     }
 
     const now = new Date();
+    const sessionId = "SES-" + now.getTime().toString(36).toUpperCase();
     const sessionData = {
-        id: "SES-" + now.getTime().toString(36).toUpperCase(),
+        id: sessionId,
         tableId: selectedTable.id,
         tableName: selectedTable.name,
         tableType: (tables.find(t => t.id === selectedTable.id) || {}).type || "",
         hourlyRate: selectedTable.rate,
         startTime: now.toISOString(),
-        isPaused: false,
-        pausedTime: null,
-        totalPausedDuration: 0,
         openedBy: currentStaffName(),
-        players: players.map((name, i) => ({ id: "P" + (i+1) + "_" + now.getTime().toString(36), name: name, joinTime: now.toISOString(), items: [] })),
+        players: validatedPlayers.map((name, i) => ({
+            id: "P" + (i+1) + "_" + now.getTime().toString(36),
+            name: name,
+            joinTime: now.toISOString(),
+            items: []
+        })),
         billItems: []
     };
-    active.push(sessionData);
-    localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(active));
-    console.log("📤 Session started:", sessionData);
     
-    // ✅ When your Google Script is ready, uncomment below:
-    /*
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify(sessionData)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            alert("✅ Session started!\nSession ID: " + data.sessionId);
-            // Redirect to active session page
-            window.location.href = `active-session.html?id=${data.sessionId}`;
-        } else {
-            alert("❌ Error: " + (data.error || "Unknown error"));
-        }
-    });
-    */
+    // Save locally before syncing; local storage is the source of truth for active sessions.
+    activeNow.push(sessionData);
+    try {
+        localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(activeNow));
+    } catch (e) {
+        alert("⚠️ Could not save the session on this device. Check available browser storage and try again.");
+        return;
+    }
+
+    // Sync to Google Sheets
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "startSession", session: sessionData })
+        }).catch(() => {});
+    }
     
-    // Redirect to the active sessions overview — this table now appears there with a live timer
+    alert("✅ Session started!\nTable: " + selectedTable.name + "\nRate: Rs. " + selectedTable.rate + "/hr");
     window.location.href = "active-session.html";
 }
 </script>
