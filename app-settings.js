@@ -93,3 +93,109 @@ window.loadCustomers = function () {
   window.attachAC = attachAC;
   window.attachAllPlayerAC = attachAllPlayerAC;
 })();
+
+// ============================================================
+// Shared POS helpers — table directory, bookings, credit due, sync
+// ============================================================
+// Table directory. Internal codes T01–T06 never change so existing
+// records keep working; only the friendly display labels were renamed.
+window.CUE_TABLES = [
+  { id: "T01", label: "01 — Viper",      short: "Viper",      type: "Snooker" },
+  { id: "T02", label: "02 — Titan",      short: "Titan",      type: "Snooker" },
+  { id: "T03", label: "03 — Phantom",    short: "Phantom",    type: "Snooker" },
+  { id: "T04", label: "04 — Prestige",   short: "Prestige",   type: "Snooker" },
+  { id: "T05", label: "01 — Black 8",    short: "Black 8",    type: "Pool" },
+  { id: "T06", label: "02 — Golden Break", short: "Golden Break", type: "Pool" }
+];
+window.getCueTable = function (id) {
+  return window.CUE_TABLES.find(function (t) { return t.id === String(id); }) || null;
+};
+window.tableLabel = function (id) {
+  var t = window.getCueTable(id);
+  return t ? t.label : (String(id || "") || "Table");
+};
+window.tableTypeOf = function (id) {
+  var t = window.getCueTable(id);
+  return t ? t.type : "";
+};
+
+// Fire-and-forget POST to the Google Apps Script deployment (no-cors).
+window.postSync = function (payload) {
+  try {
+    var url = window.GOOGLE_SCRIPT_URL;
+    if (!url || !payload) return;
+    fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(function () {});
+  } catch (e) {}
+};
+
+// ---- Pre-bookings (cueclubBookings) ----
+window.BOOKINGS_KEY = "cueclubBookings";
+window.loadBookings = function () {
+  try {
+    var b = JSON.parse(localStorage.getItem(window.BOOKINGS_KEY) || "[]");
+    return Array.isArray(b) ? b.filter(function (x) { return x && typeof x === "object"; }) : [];
+  } catch (e) { return []; }
+};
+window.saveBookings = function (list, skipSync) {
+  try { localStorage.setItem(window.BOOKINGS_KEY, JSON.stringify(list)); } catch (e) {}
+  if (!skipSync) window.postSync({ action: "saveBookings", bookings: list, syncedAt: new Date().toISOString() });
+};
+window.pendingBookings = function () {
+  return window.loadBookings().filter(function (b) { return b && b.status === "booked"; });
+};
+// A table is "booked" when it has an active (pending) reservation.
+window.bookingForTable = function (tableId) {
+  return window.pendingBookings().find(function (b) { return b.tableId === tableId; }) || null;
+};
+
+// ---- Customer credit due helpers ----
+// Customers live in cueclubCustomers; due + dueLedger are added per record.
+window.CREDIT_DUE_KEY = "cueclubCustomers";
+window.getCustomerDue = function (c) { return Number(c && c.due) || 0; };
+function digitsOnly(v) { return String(v || "").replace(/\D/g, ""); }
+window.findCustomerByMobileOrName = function (mobile, name) {
+  var custs = [];
+  try { custs = window.loadCustomers ? window.loadCustomers() : JSON.parse(localStorage.getItem(window.CREDIT_DUE_KEY) || "[]"); } catch (e) { custs = []; }
+  var d = digitsOnly(mobile);
+  var nm = String(name || "").trim().toLowerCase();
+  return custs.find(function (c) {
+    if (!c) return false;
+    if (d && digitsOnly(c.mobile) === d) return true;
+    if (nm && String(c.name || "").trim().toLowerCase() === nm) return true;
+    return false;
+  }) || null;
+};
+// Record a charge (credit sale) or a settlement payment against a customer's due.
+// kind: "charge" (adds) or "payment" (reduces). Returns the updated due total.
+window.applyCustomerDue = function (customer, amount, kind, ref) {
+  if (!customer) return 0;
+  var amt = Math.round(Number(amount || 0) * 100) / 100;
+  var due = Math.round((Number(customer.due) || 0) + (kind === "charge" ? amt : -amt) * 100) / 100;
+  if (due < 0) due = 0;
+  customer.due = due;
+  customer.dueLedger = Array.isArray(customer.dueLedger) ? customer.dueLedger : [];
+  customer.dueLedger.push({
+    date: new Date().toISOString(),
+    kind: kind,
+    amount: amt,
+    ref: ref || "",
+    balanceAfter: due
+  });
+  try {
+    var all = JSON.parse(localStorage.getItem(window.CREDIT_DUE_KEY) || "[]") || [];
+    var idx = all.findIndex(function (c) { return c && c.id === customer.id; });
+    if (idx !== -1) all[idx] = customer; else all.push(customer);
+    localStorage.setItem(window.CREDIT_DUE_KEY, JSON.stringify(all));
+  } catch (e) {}
+  window.postSync({
+    action: kind === "charge" ? "saveCreditDue" : "settleCredit",
+    customer: { id: customer.id, name: customer.name, mobile: customer.mobile },
+    kind: kind, amount: amt, ref: ref || "", dueTotal: due, syncedAt: new Date().toISOString()
+  });
+  return due;
+};

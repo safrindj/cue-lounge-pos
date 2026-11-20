@@ -91,9 +91,15 @@ checkAuth();
         <h2 class="h6 mb-2"><i class="fas fa-user-check me-2"></i>Customer & Discount</h2>
         <div class="row align-items-center">
             <div class="col-6">
-                <label class="form-label small mb-1" for="customerMobile">Customer / Mobile</label>
+                <label class="form-label small mb-1" for="customerNameText">Customer Name</label>
+                <input type="text" id="customerNameText" class="form-control" placeholder="Name (required for credit)" autocomplete="name">
+            </div>
+            <div class="col-6">
+                <label class="form-label small mb-1" for="customerMobile">Mobile</label>
                 <input type="tel" id="customerMobile" class="form-control" placeholder="Enter mobile number" value="" autocomplete="tel">
             </div>
+        </div>
+        <div class="row align-items-center mt-2">
             <div class="col-6">
                 <label class="form-label small mb-1" for="discountLevel">Discount Level</label>
                 <select id="discountLevel" class="form-select">
@@ -121,10 +127,12 @@ checkAuth();
         <fieldset class="border-0 p-0 m-0 mb-3">
             <legend class="form-label small mb-2">Payment Method</legend>
             <div class="row g-2">
-                <div class="col-4"><div class="payment-option selected" id="payCash" role="radio" aria-checked="true" tabindex="0" data-method="cash"><i class="fas fa-money-bill-wave fa-lg mb-1"></i><br>Cash</div></div>
-                <div class="col-4"><div class="payment-option" id="payCard" role="radio" aria-checked="false" tabindex="0" data-method="card"><i class="fas fa-credit-card fa-lg mb-1"></i><br>Card</div></div>
-                <div class="col-4"><div class="payment-option" id="payBank" role="radio" aria-checked="false" tabindex="0" data-method="bank"><i class="fas fa-university fa-lg mb-1"></i><br>Transfer</div></div>
+                <div class="col-6 col-md-3"><div class="payment-option selected" id="payCash" role="radio" aria-checked="true" tabindex="0" data-method="cash"><i class="fas fa-money-bill-wave fa-lg mb-1"></i><br>Cash</div></div>
+                <div class="col-6 col-md-3"><div class="payment-option" id="payCard" role="radio" aria-checked="false" tabindex="0" data-method="card"><i class="fas fa-credit-card fa-lg mb-1"></i><br>Card</div></div>
+                <div class="col-6 col-md-3"><div class="payment-option" id="payBank" role="radio" aria-checked="false" tabindex="0" data-method="bank"><i class="fas fa-university fa-lg mb-1"></i><br>Transfer</div></div>
+                <div class="col-6 col-md-3"><div class="payment-option" id="payCredit" role="radio" aria-checked="false" tabindex="0" data-method="credit"><i class="fas fa-hand-holding-dollar fa-lg mb-1"></i><br>Credit</div></div>
             </div>
+            <div id="creditHint" class="small text-danger mt-2" style="display:none"><i class="fas fa-info-circle me-1"></i>Credit selected: the unpaid balance will be added to this customer's outstanding due.</div>
         </fieldset>
         <div class="mb-3"><label class="form-label small mb-1" for="paymentNotes">Notes / Reference</label><input type="text" id="paymentNotes" class="form-control" placeholder="Optional: Transaction ref or notes"></div>
         <div class="alert alert-success py-2 mb-0 d-none" id="savedMessage" role="status"></div>
@@ -238,33 +246,45 @@ function calculateBalance() {
 
 function lookupCustomer(value) {
     const normalized = String(value || '').replace(/\D/g, '');
-    if (!normalized) {
+    const nameVal = (byId('customerNameText').value || '').trim();
+    let matched = null;
+    try {
+        const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
+        const nm = nameVal.toLowerCase();
+        matched = custs.find(c => {
+            if (!c) return false;
+            if (normalized && String(c.mobile || "").replace(/\D/g, "") === normalized) return true;
+            if (nm && String(c.name || "").trim().toLowerCase() === nm) return true;
+            return false;
+        }) || null;
+    } catch (e) { matched = null; }
+    if (!normalized && !nameVal) {
         bill.customerName = 'Guest Customer'; bill.customerMobile = '';
         byId('customerName').textContent = 'No customer selected — guest discount applies.';
         byId('loyaltyBadge').textContent = 'Guest';
         byId('discountLevel').value = '0'; applyDiscount(); return;
     }
-    let matched = null;
-    try {
-        const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
-        matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized) || null;
-    } catch (e) { matched = null; }
     if (matched) {
         bill.customerId = matched.id || '';
         bill.customerName = matched.name;
-        bill.customerMobile = value.trim();
+        bill.customerMobile = (matched.mobile || value || '').trim();
+        if ((byId('customerNameText').value || '').trim() !== matched.name) byId('customerNameText').value = matched.name;
         if (matched.manualDiscount != null && matched.manualDiscount !== '') {
             byId('customerName').textContent = `Customer: ${matched.name} • Manual discount ${matched.manualDiscount}% (admin-set)`;
             byId('loyaltyBadge').textContent = `Manual ${matched.manualDiscount}%`;
             byId('discountLevel').value = String(matched.manualDiscount);
         } else {
-            byId('customerName').textContent = `Customer: ${matched.name}`;
+            const due = Number(matched.due) || 0;
+            byId('customerName').textContent = `Customer: ${matched.name}` + (due > 0 ? ` • Outstanding due ${money(due)}` : "");
             byId('loyaltyBadge').textContent = 'Member';
         }
     } else {
-        bill.customerName = 'Guest Customer'; bill.customerMobile = value.trim();
-        byId('customerName').textContent = 'Not in customer list — billed as Guest.';
-        byId('loyaltyBadge').textContent = 'Guest';
+        bill.customerName = nameVal || 'Guest Customer';
+        bill.customerMobile = value.trim();
+        byId('customerName').textContent = nameVal
+            ? `New customer “${nameVal}” — saved to the list on a credit bill.`
+            : 'Not in customer list — billed as Guest.';
+        byId('loyaltyBadge').textContent = nameVal ? 'New' : 'Guest';
         byId('discountLevel').value = '0';
     }
     applyDiscount();
@@ -366,6 +386,44 @@ function shareOverallBill() {
 }
 
 // ---------- Save / payment ----------
+function nextCustomerId(all){
+    let max = 49;
+    (all || []).forEach(c => {
+        const m = String(c && c.id || '').match(/^P(\d+)$/);
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    return "P" + String(max + 1).padStart(4, "0");
+}
+// Attach an unpaid (credit / partial) balance to the customer's outstanding due.
+function attachCreditDue(record){
+    const nameVal = (byId('customerNameText').value || '').trim() || String(record.customerName || '').trim();
+    const mobileVal = (byId('customerMobile').value || '').trim() || String(record.customerMobile || '').trim();
+    let all = [];
+    try { all = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || []; } catch (e) { all = []; }
+    const dMobile = mobileVal.replace(/\D/g, '');
+    const nm = nameVal.toLowerCase();
+    let cust = all.find(c => c && ((dMobile && String(c.mobile || '').replace(/\D/g, '') === dMobile) || (nm && String(c.name || '').trim().toLowerCase() === nm))) || null;
+    if (!cust) {
+        if (!nameVal && !mobileVal) {
+            alert("Credit billing needs a customer name or mobile number before saving.");
+            return false;
+        }
+        cust = { id: nextCustomerId(all), name: nameVal || ("Customer " + dMobile), mobile: mobileVal, whatsapp: "", notes: "", manualDiscount: null, due: 0, dueLedger: [], totalSpent: 0, totalVisits: 0, points: 0, regDate: new Date().toISOString(), history: [] };
+        all.push(cust);
+        try { localStorage.setItem("cueclubCustomers", JSON.stringify(all)); } catch (e) {}
+        if (window.postSync) window.postSync({ action: "saveCustomers", items: all, syncedAt: new Date().toISOString() });
+    }
+    if (window.applyCustomerDue) {
+        window.applyCustomerDue(cust, record.balance, "charge", record.billNo);
+    } else {
+        cust.due = (Number(cust.due) || 0) + record.balance;
+    }
+    record.customerId = cust.id || record.customerId;
+    record.customerName = cust.name || record.customerName;
+    record.customerMobile = cust.mobile || record.customerMobile || mobileVal;
+    record.dueAdded = record.balance;
+    return true;
+}
 function completeBill() {
     if (!sourceSession) { alert("No active session loaded. Start a session first."); return; }
     bill.paidAmount = Number(byId('paidAmount').value) || 0;
@@ -379,6 +437,11 @@ function completeBill() {
     const record = Object.assign({}, bill, {
         players: bill.players.map(p => ({ name: p.name, mobile: p.mobile || "", isGuest: !!p.isGuest, items: p.items || [] }))
     });
+    const methodCredit = bill.paymentMethod === 'credit';
+    const allowCredit = byId('allowCredit').checked;
+    if (record.balance > 0 && (methodCredit || allowCredit)) {
+        if (!attachCreditDue(record)) return;
+    }
     try {
         const bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || [];
         bills.push(record);
@@ -402,9 +465,13 @@ document.querySelectorAll('.payment-option').forEach(opt => {
     opt.addEventListener('click', () => {
         document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
         opt.classList.add('selected');
+        const hint = byId('creditHint');
+        if (hint) hint.style.display = opt.dataset.method === 'credit' ? 'block' : 'none';
+        if (opt.dataset.method === 'credit') byId('allowCredit').checked = true;
     });
 });
 byId('customerMobile').addEventListener('input', e => lookupCustomer(e.target.value));
+byId('customerNameText').addEventListener('input', e => lookupCustomer(e.target.value));
 byId('discountLevel').addEventListener('change', applyDiscount);
 byId('paidAmount').addEventListener('input', calculateBalance);
 byId('completeButton').addEventListener('click', completeBill);
@@ -439,9 +506,11 @@ byId('shareButton').addEventListener('click', shareOverallBill);
     bill.players = (s.players || []).map(p => Object.assign({ items: [] }, p, { items: Array.isArray(p.items) ? p.items : [] }));
     bill.productTotal = bill.players.reduce((t, p) => t + playerItemsTotal(p), 0);
     bill.productList = bill.players.flatMap(p => (p.items || []).map(it => `${it.name}${Number(it.qty || 1) > 1 ? " x" + it.qty : ""}`)).join(", ") || "";
-    const reg = bill.players.find(p => !p.isGuest && p.mobile);
+    const reg = bill.players.find(p => !p.isGuest && (p.mobile || p.name));
     renderBill();
+    if (reg && reg.name) byId('customerNameText').value = reg.name;
     if (reg && reg.mobile) { byId('customerMobile').value = reg.mobile; lookupCustomer(reg.mobile); }
+    else if (reg && reg.name) { lookupCustomer(reg.name); }
 })();
 </script>
 <script src="sidebar.js"></script>

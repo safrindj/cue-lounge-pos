@@ -42,6 +42,11 @@
         .active-view .view-container { display: block; }
         .progress-bar-custom { height: 8px; border-radius: 4px; background: #eee; }
         .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--bronze), var(--silver), var(--gold)); width: 0%; }
+.cust-avatar { border-radius: 50%; object-fit: cover; background: #e9ecef; }
+.cust-avatar-lg { width: 96px; height: 96px; }
+.cust-avatar-icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #e9ecef; color: #9aa5b1; font-size: 2.2rem; }
+.due-badge { color: var(--danger); font-weight: 700; }
+#detailPhoto { width: 96px; height: 96px; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -109,12 +114,16 @@ checkAuth();
         <!-- Profile Card -->
         <div class="card mb-3 border-0 shadow-sm">
             <div class="card-body text-center">
-                <div class="display-1 text-muted mb-2"><i class="fas fa-user-circle"></i></div>
+                <div class="detail-avatar-wrap mb-2">
+                <img id="detailPhoto" class="cust-avatar cust-avatar-lg" alt="Customer photo" style="display:none">
+                <div id="detailPhotoIcon" class="cust-avatar-icon"><i class="fas fa-user-circle"></i></div>
+            </div>
                 <h4 id="detailName">—</h4>
                 <p class="text-muted mb-2" id="detailMobile"><i class="fas fa-mobile-alt me-2"></i>—</p>
                 <p class="small text-muted mb-3" id="detailSince">Member since: —</p>
                 
                 <span class="loyalty-badge" id="detailLoyalty">Guest</span>
+                <div id="detailDueBox" class="mt-2"></div>
                 <div class="mt-2">
                     <strong id="detailPoints">0 Points</strong>
                     <div class="progress-bar-custom mt-2">
@@ -141,6 +150,17 @@ checkAuth();
             </div>
         </div>
 
+        <!-- Settle Due -->
+        <div class="card border-0 shadow-sm mb-3" id="settleBox" style="display:none">
+            <div class="card-body">
+                <h6 class="mb-2"><i class="fas fa-hand-holding-usd me-2"></i> Settle Outstanding Due</h6>
+                <div class="d-flex gap-2">
+                    <input type="number" id="settleAmount" class="form-control" min="0" step="0.01" placeholder="Amount paid (Rs.)">
+                    <button class="btn btn-success text-nowrap" id="settleBtn" type="button"><i class="fas fa-check me-1"></i> Settle</button>
+                </div>
+                <small class="text-muted d-block mt-1">A payment reduces the customer's due and keeps the credit bills in step.</small>
+            </div>
+        </div>
         <!-- Visit/Bill History -->
         <h6 class="mb-2"><i class="fas fa-history me-2"></i> Visit & Bill History</h6>
         <div class="card border-0 shadow-sm mb-3">
@@ -197,6 +217,17 @@ checkAuth();
                     <label class="form-label">Loyalty Discount % <span class="text-muted small">(admin override — leave blank for auto by spend)</span></label>
                     <input type="number" id="custManualDiscount" class="form-control" placeholder="e.g. 15" min="0" max="100" step="1">
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Photo <span class="text-muted small">(auto-resized to keep storage light)</span></label>
+                    <div class="d-flex align-items-center gap-2">
+                        <img id="custPhotoPreview" class="cust-avatar" style="width:48px;height:48px;display:none" alt="Photo preview">
+                        <div class="flex-grow-1">
+                            <input type="file" id="custPhoto" class="form-control" accept="image/*">
+                            <div class="form-text small">Shows as a circular photo on the card; an icon appears when there is no photo.</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="custPhotoRemove">Remove</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -215,6 +246,7 @@ const CUSTOMERS_KEY = "cueclubCustomers";
 let customers = [];
 let currentCustomerId = null;
 let customerModal;
+let pendingPhoto = null; // null = unchanged; "" = removed; dataURL = new photo
 
 // Loyalty Rules
 const loyaltyTiers = {
@@ -233,6 +265,11 @@ const _DEFAULT_CUSTOMERS = [
 ];
 
 function escapeHtml(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function money2(n){ return "Rs. " + Number(n||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function avatarHtml(cust, size){
+    if (cust && cust.photo) return `<img class="cust-avatar" style="width:${size}px;height:${size}px" src="${cust.photo}" alt="${escapeHtml(cust.name||"photo")}">`;
+    return `<span class="cust-avatar-icon" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.5)}px"><i class="fas fa-user-circle"></i></span>`;
+}
 function formatDate(d){
     if(!d) return "—";
     const date = new Date(d);
@@ -251,7 +288,10 @@ function loadCustomers(){
                 totalSpent: Number.isFinite(Number(c.totalSpent)) ? Number(c.totalSpent) : 0,
                 totalVisits: Number.isFinite(Number(c.totalVisits)) ? Number(c.totalVisits) : 0,
                 points: Number.isFinite(Number(c.points)) ? Number(c.points) : 0,
-                history: Array.isArray(c.history) ? c.history : []
+                history: Array.isArray(c.history) ? c.history : [],
+                due: Number.isFinite(Number(c.due)) ? Number(c.due) : 0,
+                dueLedger: Array.isArray(c.dueLedger) ? c.dueLedger : [],
+                photo: typeof c.photo === "string" ? c.photo : ""
             })) : [];
         } else {
             customers = _DEFAULT_CUSTOMERS.slice();
@@ -327,15 +367,18 @@ function renderCustomerList(filterText = "") {
     filtered.forEach(cust => {
         const tier = getLoyaltyTier(Number(cust.totalSpent) || 0);
         const stars = "★".repeat(tier.stars);
+        const due = Number(cust.due) || 0;
         const card = document.createElement("div");
         card.className = "customer-card";
         card.setAttribute("role", "button");
         card.tabIndex = 0;
         card.innerHTML = `
-            <div class="d-flex justify-content-between align-items-start gap-2">
-                <div>
+            <div class="d-flex gap-2 align-items-start">
+                ${avatarHtml(cust, 44)}
+                <div class="flex-grow-1">
                     <h6 class="mb-1">${escapeHtml(cust.name)}</h6>
                     <div class="small text-muted"><i class="fas fa-mobile-alt me-1"></i>${escapeHtml(cust.mobile)}</div>
+                    ${due > 0 ? `<div class="due-badge small mt-1"><i class="fas fa-exclamation-circle me-1"></i>Due: ${money2(due)}</div>` : '<div class="small mt-1 text-success"><i class="fas fa-check-circle me-1"></i>No due</div>'}
                 </div>
                 <span class="loyalty-badge ${tier.badgeClass}">${tier.name}${stars ? " " + stars : ""}</span>
             </div>
@@ -381,13 +424,32 @@ function openDetail(id) {
     document.getElementById("detailSpent").textContent = "Rs. " + Number(cust.totalSpent || 0).toLocaleString();
     document.getElementById("detailVisits").textContent = Number(cust.totalVisits) || 0;
 
+    const dImg = document.getElementById("detailPhoto");
+    const dIcon = document.getElementById("detailPhotoIcon");
+    if (cust.photo) { dImg.src = cust.photo; dImg.style.display = "block"; dIcon.style.display = "none"; }
+    else { dImg.style.display = "none"; dIcon.style.display = "inline-flex"; }
+
+    const due = Number(cust.due) || 0;
+    const dueBox = document.getElementById("detailDueBox");
+    dueBox.innerHTML = due > 0
+        ? `<div class="due-badge" style="font-size:1.05rem"><i class="fas fa-exclamation-circle me-1"></i>Outstanding Due: ${money2(due)}</div>`
+        : '<div class="text-success small"><i class="fas fa-check-circle me-1"></i>No outstanding due</div>';
+    document.getElementById("settleBox").style.display = due > 0 ? "block" : "none";
+    document.getElementById("settleAmount").value = "";
+
     const history = document.getElementById("historyList");
-    history.innerHTML = (cust.history || []).length ? "" : '<div class="p-3 text-muted small">No visits recorded yet.</div>';
-    (cust.history || []).slice().reverse().forEach(h => {
+    const ledgerRows = (cust.dueLedger || []).slice().reverse().map(l => ({
+        date: l.date, billNo: (l.kind === "charge" ? "Credit charge " : "Payment ") + (l.ref || ""),
+        amount: (l.kind === "charge" ? Number(l.amount) : -Number(l.amount) || 0)
+    }));
+    const allRows = (cust.history || []).concat(ledgerRows);
+    history.innerHTML = allRows.length ? "" : '<div class="p-3 text-muted small">No visits recorded yet.</div>';
+    allRows.slice().reverse().forEach(h => {
         const row = document.createElement("div");
         row.className = "history-item d-flex justify-content-between";
+        const neg = Number(h.amount) < 0;
         row.innerHTML = `<div><small class="text-muted">${formatDate(h.date)}</small><div>${escapeHtml(h.billNo || "Visit")}</div></div>
-            <span class="bill-amount">Rs. ${Number(h.amount || 0).toLocaleString()}</span>`;
+            <span class="${neg ? "text-success" : "bill-amount"}">${neg ? "− " : ""}Rs. ${Math.abs(Number(h.amount || 0)).toLocaleString()}</span>`;
         history.appendChild(row);
     });
     document.getElementById("mainWrapper").classList.add("active-view");
@@ -407,6 +469,11 @@ function openNewCustomerModal(person = null) {
     document.getElementById("custWhatsapp").value = person ? (person.whatsapp || "") : "";
     document.getElementById("custNotes").value = person ? (person.notes || "") : "";
     document.getElementById("custManualDiscount").value = person && person.manualDiscount != null ? person.manualDiscount : "";
+    pendingPhoto = person && person.photo ? person.photo : null;
+    const prev = document.getElementById("custPhotoPreview");
+    if (person && person.photo) { prev.src = person.photo; prev.style.display = "block"; }
+    else { prev.style.display = "none"; }
+    document.getElementById("custPhoto").value = "";
     customerModal.show();
 }
 
@@ -421,12 +488,13 @@ function saveCustomer() {
     const manualDiscount = rawDisc === "" ? null : Math.max(0, Math.min(100, Number(rawDisc) || 0));
 
     const existing = customers.find(c => c.id === id);
+    const photoValue = pendingPhoto === null ? (existing ? existing.photo : "") : pendingPhoto;
     if (existing) {
-        Object.assign(existing, { name, mobile, whatsapp, notes, manualDiscount });
+        Object.assign(existing, { name, mobile, whatsapp, notes, manualDiscount, photo: photoValue });
     } else {
         customers.push({
-            id, name, mobile, whatsapp, notes, manualDiscount,
-            totalSpent: 0, totalVisits: 0, points: 0,
+            id, name, mobile, whatsapp, notes, manualDiscount, photo: photoValue,
+            due: 0, dueLedger: [], totalSpent: 0, totalVisits: 0, points: 0,
             regDate: new Date().toISOString(), history: []
         });
     }
@@ -450,6 +518,76 @@ function deleteCustomer() {
     goBack();
 }
 
+function settleCustomer(){
+    const cust = customers.find(c => c.id === currentCustomerId);
+    if (!cust) return;
+    const amt = Number(document.getElementById("settleAmount").value) || 0;
+    const due = Number(cust.due) || 0;
+    if (!(amt > 0)) { alert("Enter a payment amount greater than zero."); return; }
+    const pay = Math.min(Math.round(amt * 100) / 100, due);
+    cust.due = Math.round((due - pay) * 100) / 100;
+    cust.dueLedger = Array.isArray(cust.dueLedger) ? cust.dueLedger : [];
+    cust.dueLedger.push({ date: new Date().toISOString(), kind: "payment", amount: pay, ref: "Counter settlement", balanceAfter: cust.due });
+    saveCustomers();
+    reconcileBills(cust, pay);
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "settleCredit", customer: { id: cust.id, name: cust.name, mobile: cust.mobile }, amount: pay, dueTotal: cust.due, syncedAt: new Date().toISOString() }) }).catch(() => {});
+    }
+    openDetail(currentCustomerId);
+    renderCustomerList();
+    alert("Payment of " + money2(pay) + " recorded. Remaining due: " + money2(cust.due));
+}
+function reconcileBills(cust, pay){
+    let remaining = pay;
+    try {
+        const bills = JSON.parse(localStorage.getItem("cueclubBills") || "[]") || [];
+        let changed = false;
+        bills.forEach(b => {
+            if (remaining <= 0) return;
+            const owes = Number(b.balance) || 0;
+            if (owes <= 0) return;
+            const same = (b.customerId && b.customerId === cust.id) ||
+                (cust.mobile && String(b.customerMobile || "").replace(/\D/g, "") === String(cust.mobile).replace(/\D/g, "")) ||
+                (b.customerName && String(b.customerName).trim().toLowerCase() === String(cust.name).trim().toLowerCase());
+            if (!same) return;
+            const apply = Math.min(remaining, owes);
+            b.paidAmount = (Number(b.paidAmount) || 0) + apply;
+            b.balance = Math.round((owes - apply) * 100) / 100;
+            b.status = b.balance <= 0 ? "paid" : (b.paidAmount > 0 ? "partial" : "credit");
+            remaining = Math.round((remaining - apply) * 100) / 100;
+            changed = true;
+            if (window.postSync) window.postSync({ action: "updateBill", bill: b });
+        });
+        if (changed) localStorage.setItem("cueclubBills", JSON.stringify(bills));
+    } catch (e) {}
+}
+document.getElementById("settleBtn").addEventListener("click", settleCustomer);
+document.getElementById("custPhoto").addEventListener("change", function(e){
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+        const img = new Image();
+        img.onload = function(){
+            const max = 320;
+            let w = img.width, h = img.height;
+            if (w > max || h > max) { const r = Math.min(max / w, max / h); w = Math.round(w * r); h = Math.round(h * r); }
+            const c = document.createElement("canvas"); c.width = w; c.height = h;
+            c.getContext("2d").drawImage(img, 0, 0, w, h);
+            pendingPhoto = c.toDataURL("image/jpeg", 0.82);
+            const prev = document.getElementById("custPhotoPreview");
+            prev.src = pendingPhoto; prev.style.display = "block";
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+document.getElementById("custPhotoRemove").addEventListener("click", function(){
+    pendingPhoto = "";
+    document.getElementById("custPhotoPreview").style.display = "none";
+    document.getElementById("custPhoto").value = "";
+});
 document.getElementById("modalSaveBtn").addEventListener("click", saveCustomer);
 
 </script>

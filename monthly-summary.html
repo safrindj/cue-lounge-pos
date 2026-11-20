@@ -438,6 +438,12 @@ function exportReport() {
 }
 
 renderReport();
+(function sendHeartbeat(){
+    try {
+        if (GOOGLE_SCRIPT_URL) fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "heartbeat", page: "monthly-summary", syncedAt: new Date().toISOString() }) }).catch(() => {});
+    } catch (e) {}
+})();
 </script>
 <script src="sidebar.js"></script>
 </body>

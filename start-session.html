@@ -36,6 +36,14 @@
         .step-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; font-weight: bold; margin-right: 10px; }
         .remove-btn { color: var(--danger); border: none; background: none; font-size: 18px; }
         .container { max-width: 720px; padding-bottom: 40px; }
+        .badge-booked { background: var(--warning); color: #212529; font-weight: 600; }
+        .table-card.booked { border-color: var(--warning); background: #fff8e1; }
+        .booking-item { background: #fff; border-left: 4px solid var(--warning); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .booking-item .meta { font-size: .82rem; color: #666; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 2000; padding: 16px; overflow-y: auto; }
+        .modal-mask.show { display: block; }
+        .modal-box { background: #fff; border-radius: 14px; padding: 20px; max-width: 480px; margin: 5vh auto 0; }
+        .header-bar .spacer { flex: 1; }
     </style>
 </head>
 <body>
@@ -55,7 +63,11 @@ checkAuth();
     <a href="dashboard.html" class="back-link" aria-label="Back to dashboard">
         <i class="fas fa-arrow-left"></i>
     </a>
-    <h4><i class="fas fa-play-circle me-2"></i> Start New Session</h4>
+    <h4 class="mb-0"><i class="fas fa-play-circle me-2"></i> Start New Session</h4>
+    <span class="spacer"></span>
+    <button class="btn btn-sm btn-light fw-bold" id="preBookBtn" type="button">
+        <i class="fas fa-calendar-plus me-1"></i> Pre-Book a Table
+    </button>
 </div>
 
 <div class="container mt-4">
@@ -65,6 +77,48 @@ checkAuth();
         <h5 class="mb-3"><span class="step-number">1</span> Select a Table</h5>
         <div class="row g-3" id="tableList">
             <!-- Tables loaded by JavaScript -->
+        </div>
+    </div>
+    <!-- Pre-bookings -->
+    <div class="mb-4" id="bookingSection">
+        <h5 class="mb-3"><span class="step-number">📅</span> Upcoming Bookings</h5>
+        <div id="bookingList"></div>
+    </div>
+    <!-- Pre-Book Modal -->
+    <div class="modal-mask" id="bookingModal">
+        <div class="modal-box">
+            <h5 class="mb-3"><i class="fas fa-calendar-plus me-2"></i> Pre-Book a Table</h5>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Table *</label>
+                <select id="bkTable" class="form-select"></select>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <label class="form-label small mb-1">Date *</label>
+                    <input type="date" id="bkDate" class="form-control">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small mb-1">Time *</label>
+                    <input type="time" id="bkTime" class="form-control" value="18:00">
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Customer Name *</label>
+                <input type="text" id="bkName" class="form-control" placeholder="e.g. Perera K." list="bkCustomerNames">
+                <datalist id="bkCustomerNames"></datalist>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Mobile</label>
+                <input type="tel" id="bkMobile" class="form-control" placeholder="07X-XXXXXXX">
+            </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Players (comma separated)</label>
+                <input type="text" id="bkPlayers" class="form-control" placeholder="e.g. Perera K., Silva S.">
+            </div>
+            <div class="d-flex gap-2 mt-3 justify-content-end">
+                <button class="btn btn-secondary" type="button" onclick="closeBookingModal()">Cancel</button>
+                <button class="btn btn-primary" type="button" id="bkSaveBtn" style="background:var(--primary);border:none"><i class="fas fa-calendar-check me-1"></i> Save Booking</button>
+            </div>
         </div>
     </div>
 
@@ -104,15 +158,12 @@ let selectedTable = null;
 let playerCount = 0;
 const ACTIVE_SESSIONS_KEY = "cueclubActiveSessions";
 
-// Table Data
-const tables = [
-    { id: "T01", name: "Table 01", type: "Snooker", rate: 1000, status: "Available" },
-    { id: "T02", name: "Table 02", type: "Snooker", rate: 1000, status: "Available" },
-    { id: "T03", name: "Table 03", type: "Snooker", rate: 1000, status: "Available" },
-    { id: "T04", name: "Table 04", type: "Snooker", rate: 1000, status: "Available" },
-    { id: "T05", name: "Table 05", type: "Pool", rate: 800, status: "Available" },
-    { id: "T06", name: "Table 06", type: "Pool", rate: 800, status: "Available" }
-];
+// Table Data — internal codes T01–T06 unchanged; friendly labels renamed.
+const tables = (window.CUE_TABLES || []).map(function (t) {
+    return { id: t.id, name: t.label, type: t.type, rate: t.type === "Snooker" ? 1000 : 800, status: "Available" };
+});
+const BOOKINGS_KEY = "cueclubBookings";
+let bookings = [];
 
 // Helper functions
 function loadActiveSessions(){
@@ -129,10 +180,25 @@ function currentStaffName(){
     } catch(e){ return "Staff"; } 
 }
 
+function loadBookingsLocal(){
+    try {
+        const b = JSON.parse(localStorage.getItem(BOOKINGS_KEY) || "[]");
+        bookings = Array.isArray(b) ? b.filter(x => x && typeof x === "object") : [];
+    } catch(e){ bookings = []; }
+    return bookings;
+}
+function persistBookings(){
+    try { localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings)); } catch(e){}
+    window.postSync({ action: "saveBookings", bookings: bookings, syncedAt: new Date().toISOString() });
+}
+function pendingBookings(){ return bookings.filter(b => b && b.status === "booked"); }
 function refreshOccupied(){
     var active = loadActiveSessions();
-    tables.forEach(function(t){ 
-        t.status = active.some(function(s){ return s.tableId === t.id; }) ? "Occupied" : "Available"; 
+    var pending = pendingBookings();
+    tables.forEach(function(t){
+        if (active.some(function(s){ return s.tableId === t.id; })) { t.status = "Occupied"; return; }
+        if (pending.some(function(b){ return b.tableId === t.id; })) { t.status = "Booked"; return; }
+        t.status = "Available";
     });
 }
 
@@ -156,8 +222,12 @@ function loadRatesFromSettings() {
 // INIT
 window.onload = function() {
     loadRatesFromSettings();
+    loadBookingsLocal();
     refreshOccupied();
     renderTables();
+    renderBookings();
+    populateBookingTableSelect();
+    setupBookingModal();
     addPlayerRow();
 };
 
@@ -167,14 +237,23 @@ function renderTables() {
     container.innerHTML = "";
     
     tables.forEach(table => {
-        const isAvailable = table.status === "Available";
+        const status = table.status;
         const badgeClass = table.type === "Snooker" ? "badge-snooker" : "badge-pool";
+        const clickable = status !== "Occupied";
+        let statusHtml;
+        if (status === "Occupied") {
+            statusHtml = '<span class="text-danger"><i class="fas fa-circle fa-xs"></i> Occupied</span>';
+        } else if (status === "Booked") {
+            statusHtml = '<span class="badge badge-booked"><i class="fas fa-calendar-check me-1"></i>Booked</span>';
+        } else {
+            statusHtml = '<span class="text-success"><i class="fas fa-circle fa-xs"></i> Available</span>';
+        }
         
         container.innerHTML += `
             <div class="col-6 col-md-4">
-                <div class="card table-card p-3 ${!isAvailable ? 'opacity-50' : ''}" 
+                <div class="card table-card p-3 ${status === "Occupied" ? 'opacity-50' : ''} ${status === "Booked" ? 'booked' : ''}" 
                      id="card-${table.id}" 
-                     onclick="${isAvailable ? `selectTable('${table.id}', '${table.name}', ${table.rate})` : ''}">
+                     onclick="${clickable ? `selectTable('${table.id}')` : ''}">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">${table.name}</h6>
                         <span class="badge ${badgeClass}">${table.type}</span>
@@ -182,11 +261,7 @@ function renderTables() {
                     <div>
                         <span class="rate-tag">Rs. ${table.rate}/hr</span>
                     </div>
-                    <div class="mt-2 small">
-                        ${isAvailable 
-                            ? '<span class="text-success"><i class="fas fa-circle fa-xs"></i> Available</span>' 
-                            : '<span class="text-danger"><i class="fas fa-circle fa-xs"></i> Occupied</span>'}
-                    </div>
+                    <div class="mt-2 small">${statusHtml}</div>
                 </div>
             </div>
         `;
@@ -194,13 +269,14 @@ function renderTables() {
 }
 
 // Table Selection
-function selectTable(id, name, rate) {
+function selectTable(id) {
+    const table = tables.find(t => t.id === id);
+    if (!table) return;
     document.querySelectorAll('.table-card').forEach(card => card.classList.remove('selected'));
-    selectedTable = { id, name, rate };
+    selectedTable = { id: table.id, name: table.name, rate: table.rate };
     document.getElementById(`card-${id}`).classList.add('selected');
-    
-    document.getElementById("selTable").textContent = name + " — " + (tables.find(t=>t.id===id)?.type || "");
-    document.getElementById("selRate").textContent = rate;
+    document.getElementById("selTable").textContent = table.name + " — " + table.type;
+    document.getElementById("selRate").textContent = table.rate;
     document.getElementById("summaryBox").classList.remove("d-none");
     updatePlayerCount();
 }
@@ -260,25 +336,148 @@ function findCustomerFor(value) {
     }) || null;
 }
 
+
+// ================= Pre-bookings =================
+function fmtDate(d){
+    const dt = new Date(d + "T00:00:00");
+    return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+function populateBookingTableSelect(){
+    const sel = document.getElementById("bkTable");
+    sel.innerHTML = tables.map(t =>
+        `<option value="${t.id}">${t.name} — ${t.type} (Rs. ${t.rate}/hr)</option>`).join("");
+}
+function setupBookingModal(){
+    const modal = document.getElementById("bookingModal");
+    document.getElementById("preBookBtn").addEventListener("click", openBookingModal);
+    document.getElementById("bkSaveBtn").addEventListener("click", saveBooking);
+    document.getElementById("bkDate").min = new Date().toISOString().slice(0,10);
+    document.getElementById("bkDate").value = new Date().toISOString().slice(0,10);
+    modal.addEventListener("click", function(e){ if (e.target === modal) closeBookingModal(); });
+    document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeBookingModal(); });
+    // customer name autocomplete datalist
+    const dl = document.getElementById("bkCustomerNames");
+    try { (window.loadCustomers ? window.loadCustomers() : []).forEach(function(c){
+        if (c && c.name) { const o = document.createElement("option"); o.value = c.name; dl.appendChild(o); }
+    }); } catch(e){}
+}
+function openBookingModal(){
+    document.getElementById("bkSaveBtn").disabled = false;
+    document.getElementById("bookingModal").classList.add("show");
+}
+function closeBookingModal(){
+    document.getElementById("bookingModal").classList.remove("show");
+}
+function saveBooking(){
+    const tableId = document.getElementById("bkTable").value;
+    const date = document.getElementById("bkDate").value;
+    const time = document.getElementById("bkTime").value;
+    const customerName = document.getElementById("bkName").value.trim();
+    const mobile = document.getElementById("bkMobile").value.trim();
+    const playersRaw = document.getElementById("bkPlayers").value;
+    const players = playersRaw.split(",").map(x => x.trim()).filter(Boolean);
+    if (!date || !time) { alert("Please choose a date and time."); return; }
+    if (!customerName) { alert("Please enter the customer name."); return; }
+    const t = tables.find(x => x.id === tableId) || {};
+    const booking = {
+        id: "BK-" + Date.now().toString(36).toUpperCase(),
+        tableId: tableId,
+        tableName: t.name || tableId,
+        tableType: t.type || "",
+        date: date, time: time,
+        customerName: customerName, mobile: mobile,
+        players: players,
+        createdAt: new Date().toISOString(),
+        status: "booked"
+    };
+    bookings.push(booking);
+    persistBookings();
+    refreshOccupied(); renderTables(); renderBookings();
+    closeBookingModal();
+    document.getElementById("bkName").value = "";
+    document.getElementById("bkMobile").value = "";
+    document.getElementById("bkPlayers").value = "";
+    alert("✅ Table booked for " + customerName + "\n" + t.name + " • " + fmtDate(date) + " " + time);
+}
+function renderBookings(){
+    const list = document.getElementById("bookingList");
+    const pending = pendingBookings().slice().sort(function(a,b){
+        return (a.date + " " + a.time).localeCompare(b.date + " " + b.time);
+    });
+    if (!pending.length) {
+        list.innerHTML = '<div class="text-muted small py-2">No upcoming bookings. Use <b>Pre-Book a Table</b> to reserve one.</div>';
+        return;
+    }
+    list.innerHTML = pending.map(function(b){
+        const badge = b.tableType === "Pool" ? "badge-pool" : "badge-snooker";
+        const players = (b.players || []).join(", ") || (b.customerName || "—");
+        return `<div class="booking-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <div><b>${escapeHtmlSafe(b.tableName)}</b> <span class="badge ${badge}">${escapeHtmlSafe(b.tableType)}</span></div>
+                    <div class="meta mt-1"><i class="far fa-calendar-alt me-1"></i>${fmtDate(b.date)} ${b.time || ""}</div>
+                    <div class="meta"><i class="fas fa-user me-1"></i>${escapeHtmlSafe(b.customerName)} ${b.mobile ? "• " + escapeHtmlSafe(b.mobile) : ""}</div>
+                    <div class="meta"><i class="fas fa-users me-1"></i>${escapeHtmlSafe(players)}</div>
+                </div>
+                <div class="d-flex flex-column gap-2 text-nowrap">
+                    <button class="btn btn-sm btn-success" onclick="startNow('${b.id}')"><i class="fas fa-play me-1"></i>Start now</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="cancelBooking('${b.id}')"><i class="fas fa-times me-1"></i>Cancel</button>
+                </div>
+            </div>
+        </div>`;
+    }).join("");
+}
+function escapeHtmlSafe(v){ return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function cancelBooking(id){
+    const bk = bookings.find(b => b.id === id);
+    if (!bk) return;
+    if (!confirm("Cancel the booking for " + bk.customerName + " on " + bk.tableName + "?")) return;
+    bk.status = "cancelled";
+    bk.cancelledAt = new Date().toISOString();
+    persistBookings();
+    refreshOccupied(); renderTables(); renderBookings();
+}
+function entriesFromNames(names){
+    return (names || []).map(function(raw){
+        raw = String(raw || "").trim();
+        if (!raw) return null;
+        const cust = findCustomerFor(raw);
+        if (cust) return { name: cust.name, mobile: cust.mobile || "", customerId: cust.id || "", isGuest: false };
+        return { name: raw, mobile: "", customerId: "", isGuest: true };
+    }).filter(Boolean);
+}
+function startNow(bookingId){
+    const bk = bookings.find(b => b.id === bookingId);
+    if (!bk) return;
+    const t = tables.find(x => x.id === bk.tableId);
+    if (t) selectTable(bk.tableId);
+    startSession(bookingId);
+}
+// ================= End pre-bookings =================
+
 // Start Session
-function startSession() {
+function startSession(bookingId) {
     if (!selectedTable) {
         alert("\u26a0\ufe0f Please select a table first");
         return;
     }
 
-    // Collect players: registered when found in the customer database, otherwise Guest mode.
-    const rawInputs = Array.prototype.slice.call(document.querySelectorAll('.player-name'));
-    let hasName = false;
-    const playerEntries = rawInputs.map(function (input, idx) {
-        const raw = input.value.trim();
-        if (raw) hasName = true;
-        const cust = findCustomerFor(raw);
-        if (cust) {
-            return { name: cust.name, mobile: cust.mobile || "", customerId: cust.id || "", isGuest: false };
-        }
-        return { name: raw || ("Guest " + (idx + 1)), mobile: "", customerId: "", isGuest: true };
-    });
+    // Collect players: from the booking when "Start now" is used, otherwise from the form.
+    let playerEntries;
+    if (bookingId) {
+        const bk = bookings.find(b => b.id === bookingId);
+        playerEntries = entriesFromNames(bk ? bk.players : []);
+        if (!playerEntries.length && bk && bk.customerName) playerEntries = entriesFromNames([bk.customerName]);
+    } else {
+        const rawInputs = Array.prototype.slice.call(document.querySelectorAll('.player-name'));
+        playerEntries = rawInputs.map(function (input, idx) {
+            const raw = input.value.trim();
+            const cust = findCustomerFor(raw);
+            if (cust) return { name: cust.name, mobile: cust.mobile || "", customerId: cust.id || "", isGuest: false };
+            return { name: raw || ("Guest " + (idx + 1)), mobile: "", customerId: "", isGuest: true };
+        });
+    }
+    const hasName = playerEntries.some(p => p && p.name);
     if (!hasName) { alert("\u26a0\ufe0f Please enter at least one player name"); return; }
 
     // Check for duplicate registered players across active sessions
@@ -303,6 +502,17 @@ function startSession() {
     if (activeNow.some(s => s.tableId === selectedTable.id)) {
         alert("\u26a0\ufe0f This table already has a running session.");
         return;
+    }
+    // Manual start on a reserved table asks for an override confirmation.
+    let convertId = null;
+    const bookedHere = pendingBookings().find(b => b.tableId === selectedTable.id);
+    if (bookingId) {
+        convertId = bookingId;
+    } else if (bookedHere) {
+        const ok = confirm("This table is booked for " + fmtDate(bookedHere.date) + " " + (bookedHere.time || "") +
+            " (" + bookedHere.customerName + "). Start a manual session anyway and override the reservation?");
+        if (!ok) return;
+        convertId = bookedHere.id;
     }
     const now = new Date();
     const sessionId = "SES-" + now.getTime().toString(36).toUpperCase();
@@ -345,6 +555,15 @@ function startSession() {
         }).catch(() => {});
     }
 
+    if (convertId) {
+        const bk = bookings.find(b => b.id === convertId);
+        if (bk) {
+            bk.status = "converted";
+            bk.convertedSession = sessionId;
+            bk.convertedAt = new Date().toISOString();
+            persistBookings();
+        }
+    }
     let guestNote = guestCount ? ("\nGuest player(s): " + guestCount) : "";
     alert("\u2705 Session started!\nTable: " + selectedTable.name + "\nRate: Rs. " + selectedTable.rate + "/hr" + guestNote);
     window.location.href = "active-session.html";

@@ -35,6 +35,8 @@
         .income-total { font-size: 1.2rem; font-weight: 700; color: var(--primary); border-top: 1px dashed #ddd; padding-top: 8px; margin-top: 4px; }
         .table-card { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer; }
         .table-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.table-card.booked { border: 2px solid var(--warning); background: #fff8e1; }
+.dot-booked { background: var(--warning); }
         .status-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .dot-available { background: var(--success); }
         .dot-occupied { background: var(--danger); }
@@ -149,14 +151,9 @@
 // ✅ Google Apps Script Deployment URL
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-const TABLES = [
-    { id: "T01", name: "Table 01", type: "Snooker" },
-    { id: "T02", name: "Table 02", type: "Snooker" },
-    { id: "T03", name: "Table 03", type: "Snooker" },
-    { id: "T04", name: "Table 04", type: "Snooker" },
-    { id: "T05", name: "Table 05", type: "Pool" },
-    { id: "T06", name: "Table 06", type: "Pool" }
-];
+const TABLES = (window.CUE_TABLES || []).map(function (t) {
+    return { id: t.id, name: t.label, type: t.type };
+});
 const ACTIVE_KEY = "cueclubActiveSessions";
 const BILLS_KEY = "cueclubBills";
 
@@ -244,6 +241,12 @@ function renderAll() {
     activeCache.forEach(function (s) {
         if (s && knownTableIds.indexOf(s.tableId) !== -1) occupiedIds[s.tableId] = s;
     });
+    var bookedIds = {};
+    try {
+        (window.pendingBookings ? window.pendingBookings() : []).forEach(function (b) {
+            if (b && b.tableId && !occupiedIds[b.tableId]) bookedIds[b.tableId] = b;
+        });
+    } catch (e) {}
     var occupiedCount = Object.keys(occupiedIds).length;
 
     document.getElementById("totalTables").textContent = TABLES.length;
@@ -264,19 +267,21 @@ function renderAll() {
     container.innerHTML = "";
     TABLES.forEach(function (table) {
         var sess = occupiedIds[table.id];
+        var bk = bookedIds[table.id] || null;
         var status = sess ? "occupied" : "available";
-        var statusClass = status === "occupied" ? "dot-occupied" : "dot-available";
-        var statusText = status === "occupied" ? "Occupied" : "Available";
+        var statusClass = status === "occupied" ? "dot-occupied" : (bk ? "dot-booked" : "dot-available");
+        var statusText = status === "occupied" ? "Occupied" : (bk ? "Booked" : "Available");
         var players = (sess && sess.players) ? sess.players.map(function (p) { return p && p.name; }).filter(Boolean).join(", ") : "";
         var timeId = "time_" + table.id;
         container.innerHTML +=
             '<div class="col-6 col-sm-4">' +
-                '<div class="table-card" onclick="openTable(\'' + table.id + '\')">' +
+                '<div class="table-card' + (bk && !sess ? ' booked' : '') + '" onclick="openTable(\'' + table.id + '\')">' +
                     '<h6 class="mb-1">' + table.name + '</h6>' +
                     '<span class="table-type">' + table.type + '</span>' +
                     '<div class="mt-2">' +
                         '<span class="status-dot ' + statusClass + '"></span>' +
                         '<span class="small">' + statusText + '</span>' +
+                        (bk && !sess ? ' <span class="badge" style="background:var(--warning);color:#212529"><i class="fas fa-calendar-check me-1"></i>Booked</span>' : '') +
                         (sess && sess.isPaused ? ' <span class="small text-warning"><i class="fas fa-pause"></i></span>' : '') +
                     '</div>' +
                     (sess ? '<div class="session-time"><i class="fas fa-clock"></i> <span id="' + timeId + '">' + fmtHMS(sessionElapsedMs(sess)) + '</span></div>' : '') +
@@ -311,7 +316,19 @@ window.onload = function () {
     showLoggedInStaff();
     renderAll();
     setInterval(tickTimers, 1000);
+    sendHeartbeat("dashboard");
 };
+function sendHeartbeat(page) {
+    try {
+        var staff = null;
+        try { staff = JSON.parse(sessionStorage.getItem("currentStaff") || "null"); } catch (e) {}
+        if (window.postSync) window.postSync({
+            action: "heartbeat", page: page,
+            staff: staff ? staff.name : "", role: staff ? staff.role : "",
+            syncedAt: new Date().toISOString()
+        });
+    } catch (e) {}
+}
 
 function showLoggedInStaff() {
     try {

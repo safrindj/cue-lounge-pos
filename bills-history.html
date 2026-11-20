@@ -461,6 +461,7 @@ function editBill() {
     if (!b) return;
     const val = prompt("Record paid amount for this bill (current paid: " + (b.paidAmount || 0) + "):", String(b.paidAmount || 0));
     if (val === null) return;
+    const prevPaid = Number(b.paidAmount) || 0;
     const paid = Number(val) || 0;
     b.paidAmount = paid;
     const due = Number(b.grandTotal != null ? b.grandTotal : b.total || 0);
@@ -472,6 +473,28 @@ function editBill() {
         if (idx !== -1) bills[idx] = b;
         localStorage.setItem(BILLS_KEY, JSON.stringify(bills));
     } catch (e) {}
+    // Keep the customer credit due ledger in step: extra payment reduces outstanding due.
+    const delta = Math.round((paid - prevPaid) * 100) / 100;
+    if (delta > 0) {
+        try {
+            const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
+            const dMobile = String(b.customerMobile || "").replace(/\D/g, "");
+            const nm = String(b.customerName || "").trim().toLowerCase();
+            const c = custs.find(x => x && (
+                (b.customerId && x.id === b.customerId) ||
+                (dMobile && String(x.mobile || "").replace(/\D/g, "") === dMobile) ||
+                (nm && String(x.name || "").trim().toLowerCase() === nm)
+            ));
+            if (c) {
+                c.due = Math.max(0, Math.round(((Number(c.due) || 0) - delta) * 100) / 100);
+                c.dueLedger = Array.isArray(c.dueLedger) ? c.dueLedger : [];
+                c.dueLedger.push({ date: new Date().toISOString(), kind: "payment", amount: delta, ref: b.billNo || "Bill payment", balanceAfter: c.due });
+                localStorage.setItem("cueclubCustomers", JSON.stringify(custs));
+                if (GOOGLE_SCRIPT_URL) fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "settleCredit", customer: { id: c.id, name: c.name, mobile: c.mobile }, amount: delta, dueTotal: c.due, ref: b.billNo || "", syncedAt: new Date().toISOString() }) }).catch(() => {});
+            }
+        } catch (e) {}
+    }
     if (GOOGLE_SCRIPT_URL) fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "updateBill", bill: b }) }).catch(() => {});
     renderDetail();
     loadBills();

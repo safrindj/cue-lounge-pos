@@ -341,7 +341,11 @@ function attemptLogin() {
             role: selectedStaff.role,
             loginTime: new Date().toISOString()
         }));
-        
+        // Post a staffLogin record to the deployment URL.
+        if (GOOGLE_SCRIPT_URL) {
+            fetch(GOOGLE_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "staffLogin", staff: { name: selectedStaff.name, role: selectedStaff.role, mobile: selectedStaff.mobile || "" }, at: new Date().toISOString() }) }).catch(() => {});
+        }
         document.getElementById("errorMsg").style.display = "none";
         document.getElementById("loginBtn").innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
         
