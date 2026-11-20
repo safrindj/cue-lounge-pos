@@ -40,20 +40,18 @@
         .status-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .dot-available { background: var(--success); }
         .dot-occupied { background: var(--danger); }
-        .dot-reserved { background: var(--warning); }
-        .dot-maintenance { background: #444; }
         .table-type { font-size: 0.75rem; text-transform: uppercase; color: #888; background: #f0f0f0; display: inline-block; padding: 2px 8px; border-radius: 10px; margin-top: 4px; }
         .session-time { font-family: monospace; font-size: 0.85rem; color: #555; margin-top: 6px; }
+        .players-line { font-size: 0.78rem; color: #666; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .quick-btn { border-radius: 10px; padding: 14px 10px; text-align: center; border: none; transition: all 0.2s; text-decoration: none; }
         .quick-btn:hover { transform: scale(1.03); }
         .section-title { font-size: 1rem; font-weight: 600; color: #333; margin: 24px 0 12px; }
         .discount-line { color: var(--success); }
-        .expense-line { color: var(--danger); }
         .staff-tag { font-size: 0.8rem; opacity: 0.85; }
+        .empty-note { color: #999; font-size: 0.85rem; font-style: italic; }
     </style>
 </head>
 <body>
-
 <!-- Header -->
 <div class="header-bar">
     <div class="d-flex justify-content-between align-items-center">
@@ -71,65 +69,58 @@
         </div>
     </div>
 </div>
-
 <div class="container px-3 mt-4">
     <!-- 📊 Quick Stats Row 1 -->
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
             <div class="stat-card">
-                <div class="stat-value" id="totalTables">6</div>
+                <div class="stat-value" id="totalTables">—</div>
                 <div class="stat-label">Total Tables</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card">
-                <div class="stat-value text-success" id="availableTables">2</div>
+                <div class="stat-value text-success" id="availableTables">—</div>
                 <div class="stat-label">Available</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card">
-                <div class="stat-value text-danger" id="occupiedTables">4</div>
+                <div class="stat-value text-danger" id="occupiedTables">—</div>
                 <div class="stat-label">Occupied</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card">
-                <div class="stat-value text-primary" id="activeSessions">4</div>
+                <div class="stat-value text-primary" id="activeSessions">—</div>
                 <div class="stat-label">Active Sessions</div>
             </div>
         </div>
     </div>
-
-    <!-- 💰 Today's Income Summary -->
+    <!-- 💰 Today's Income Summary (real, from saved bills) -->
     <h5 class="section-title mb-2"><i class="fas fa-coins me-2"></i> Today's Overview</h5>
     <div class="income-card mb-4">
         <div class="income-row">
             <span>Table Charges</span>
-            <span id="todayTableIncome">Rs. 14,200.00</span>
+            <span id="todayTableIncome">—</span>
         </div>
         <div class="income-row">
             <span>Product Sales</span>
-            <span id="todayProductSales">Rs. 4,250.00</span>
+            <span id="todayProductSales">—</span>
         </div>
         <div class="income-row discount-line">
             <span>Discounts Given</span>
-            <span>- Rs. 380.00</span>
-        </div>
-        <div class="income-row expense-line">
-            <span>Expenses</span>
-            <span>- Rs. 1,200.00</span>
+            <span id="todayDiscounts">—</span>
         </div>
         <div class="income-row income-total">
             <span>💰 Net Income Today</span>
-            <span id="todayTotal">Rs. 16,870.00</span>
+            <span id="todayTotal">—</span>
         </div>
+        <div class="empty-note mt-2" id="todayNote"></div>
     </div>
-
-    <!-- 🎱 Table Status Grid -->
+    <!-- 🎱 Table Status Grid (real occupancy from active sessions) -->
     <h5 class="section-title mb-2"><i class="fas fa-border-all me-2"></i> Table Status</h5>
     <div class="row g-2 mb-4" id="tablesGrid"></div>
-
     <!-- ⚡ Quick Actions — all pages -->
     <h5 class="section-title mb-2"><i class="fas fa-bolt me-2"></i> Quick Actions</h5>
     <div class="row g-2 mb-5">
@@ -145,38 +136,160 @@
         <div class="col-4 col-md-3"><a href="settings.html" class="quick-btn d-block" style="background:#1a2c42;color:#e8b832;"><i class="fas fa-cog fa-lg d-block mb-1"></i>Settings</a></div>
     </div>
 </div>
-
+<script src="app-settings.js"></script>
 <script>
 // ==========================================
-// CONFIG — Paste your Web App URL when ready
+// REAL DATA — no dummy bookings / fake income
 // ==========================================
-const GOOGLE_SCRIPT_URL = "";
+const TABLES = [
+    { id: "T01", name: "Table 01", type: "Snooker" },
+    { id: "T02", name: "Table 02", type: "Snooker" },
+    { id: "T03", name: "Table 03", type: "Snooker" },
+    { id: "T04", name: "Table 04", type: "Snooker" },
+    { id: "T05", name: "Table 05", type: "Pool" },
+    { id: "T06", name: "Table 06", type: "Pool" }
+];
+const ACTIVE_KEY = "cueclubActiveSessions";
+const BILLS_KEY = "cueclubBills";
 
-// Dashboard Data — sample data
-let dashboard = {
-    stats: {
-        totalTables: 6, available: 2, occupied: 4, activeSessions: 4,
-        tableIncome: 14200, productSales: 4250, discounts: 380, expenses: 1200
-    },
-    tables: [
-        { id: "T01", name: "Table 01", type: "Snooker", status: "available", sessionTime: "" },
-        { id: "T02", name: "Table 02", type: "Snooker", status: "occupied", sessionTime: "01:15:20" },
-        { id: "T03", name: "Table 03", type: "Snooker", status: "occupied", sessionTime: "00:42:10" },
-        { id: "T04", name: "Table 04", type: "Snooker", status: "reserved", sessionTime: "" },
-        { id: "T05", name: "Table 05", type: "Pool", status: "occupied", sessionTime: "02:05:30" },
-        { id: "T06", name: "Table 06", type: "Pool", status: "available", sessionTime: "" }
-    ]
-};
+function loadActiveSessions() {
+    try {
+        var s = JSON.parse(localStorage.getItem(ACTIVE_KEY) || "[]") || [];
+        return Array.isArray(s) ? s : [];
+    } catch (e) { return []; }
+}
+function loadTodaysBills() {
+    var out = { tableIncome: 0, productSales: 0, discounts: 0, net: 0, count: 0 };
+    try {
+        var bills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]") || [];
+        if (!Array.isArray(bills)) return out;
+        var today = new Date().toDateString();
+        bills.forEach(function (b) {
+            if (!b) return;
+            var d;
+            try { d = new Date(b.savedAt || b.endTime || Date.now()); } catch (e) { d = new Date(); }
+            if (d.toDateString() !== today) return;
+            var productTotal = Number(b.productTotal) || 0;
+            var subtotal = Number(b.subtotal);
+            if (!(subtotal >= 0)) subtotal = productTotal;
+            var tableCharge = Math.max(0, subtotal - productTotal);
+            var discount = Number(b.discountAmount) || 0;
+            var grand = Number(b.grandTotal);
+            if (!(grand >= 0)) grand = Math.max(0, subtotal - discount);
+            out.tableIncome += tableCharge;
+            out.productSales += productTotal;
+            out.discounts += discount;
+            out.net += grand;
+            out.count += 1;
+        });
+    } catch (e) {}
+    return out;
+}
+function sessionElapsedMs(sess) {
+    try {
+        var start = new Date(sess.startTime).getTime();
+        if (!start) return 0;
+        var pausedMs = Number(sess.totalPausedDuration) || 0;
+        var endMs;
+        if (sess.isPaused && sess.pausedTime) {
+            endMs = new Date(sess.pausedTime).getTime();
+        } else {
+            endMs = Date.now();
+        }
+        return Math.max(0, endMs - start - pausedMs);
+    } catch (e) { return 0; }
+}
+function fmtHMS(ms) {
+    var s = Math.floor(ms / 1000);
+    var h = Math.floor(s / 3600); s -= h * 3600;
+    var m = Math.floor(s / 60); s -= m * 60;
+    function p2(n){ return (n < 10 ? "0" : "") + n; }
+    return p2(h) + ":" + p2(m) + ":" + p2(s);
+}
+function currencySymbol() {
+    try { if (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) return APP_SETTINGS.currencySymbol; } catch (e) {}
+    return "Rs. ";
+}
+function formatCurrency(amount) {
+    var sym = currencySymbol();
+    var spaced = (sym === "Rs." || sym === "Rs. ") ? "Rs. " : sym;
+    return spaced + Number(amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+// ==========================================
+// RENDER
+// ==========================================
+var activeCache = [];
+function renderAll() {
+    activeCache = loadActiveSessions();
+    var occupiedIds = {};
+    activeCache.forEach(function (s) { if (s && s.tableId) occupiedIds[s.tableId] = s; });
+    var occupiedCount = Object.keys(occupiedIds).length;
 
+    document.getElementById("totalTables").textContent = TABLES.length;
+    document.getElementById("availableTables").textContent = TABLES.length - occupiedCount;
+    document.getElementById("occupiedTables").textContent = occupiedCount;
+    document.getElementById("activeSessions").textContent = activeCache.length;
+
+    var inc = loadTodaysBills();
+    document.getElementById("todayTableIncome").textContent = formatCurrency(inc.tableIncome);
+    document.getElementById("todayProductSales").textContent = formatCurrency(inc.productSales);
+    document.getElementById("todayDiscounts").textContent = "− " + formatCurrency(inc.discounts);
+    document.getElementById("todayTotal").textContent = formatCurrency(inc.net);
+    document.getElementById("todayNote").textContent = inc.count
+        ? ("Based on " + inc.count + " bill(s) completed today.")
+        : "No bills completed today yet — figures will update as sessions are billed.";
+
+    var container = document.getElementById("tablesGrid");
+    container.innerHTML = "";
+    TABLES.forEach(function (table) {
+        var sess = occupiedIds[table.id];
+        var status = sess ? "occupied" : "available";
+        var statusClass = status === "occupied" ? "dot-occupied" : "dot-available";
+        var statusText = status === "occupied" ? "Occupied" : "Available";
+        var players = (sess && sess.players) ? sess.players.map(function (p) { return p && p.name; }).filter(Boolean).join(", ") : "";
+        var timeId = "time_" + table.id;
+        container.innerHTML +=
+            '<div class="col-6 col-sm-4">' +
+                '<div class="table-card" onclick="openTable(\'' + table.id + '\')">' +
+                    '<h6 class="mb-1">' + table.name + '</h6>' +
+                    '<span class="table-type">' + table.type + '</span>' +
+                    '<div class="mt-2">' +
+                        '<span class="status-dot ' + statusClass + '"></span>' +
+                        '<span class="small">' + statusText + '</span>' +
+                        (sess && sess.isPaused ? ' <span class="small text-warning"><i class="fas fa-pause"></i></span>' : '') +
+                    '</div>' +
+                    (sess ? '<div class="session-time"><i class="fas fa-clock"></i> <span id="' + timeId + '">' + fmtHMS(sessionElapsedMs(sess)) + '</span></div>' : '') +
+                    (players ? '<div class="players-line" title="' + players.replace(/"/g, '&quot;') + '"><i class="fas fa-user me-1"></i>' + players + '</div>' : '') +
+                '</div>' +
+            '</div>';
+    });
+}
+function tickTimers() {
+    activeCache.forEach(function (sess) {
+        if (!sess || !sess.tableId) return;
+        var el = document.getElementById("time_" + sess.tableId);
+        if (el && !sess.isPaused) el.textContent = fmtHMS(sessionElapsedMs(sess));
+    });
+}
+function openTable(tableId) {
+    var sess = activeCache.find(function (s) { return s && s.tableId === tableId; });
+    if (sess) {
+        window.location.href = "active-session.html";
+    } else {
+        window.location.href = "start-session.html";
+    }
+}
+function refreshData() {
+    renderAll();
+}
 // ==========================================
 // INIT
 // ==========================================
 window.onload = function () {
     showLoggedInStaff();
-    renderTables();
-    updateStatsDisplay();
+    renderAll();
+    setInterval(tickTimers, 1000);
 };
-
 function showLoggedInStaff() {
     try {
         var raw = sessionStorage.getItem("currentStaff");
@@ -189,69 +302,6 @@ function showLoggedInStaff() {
         }
     } catch (e) {}
 }
-
-function updateStatsDisplay() {
-    document.getElementById("totalTables").textContent = dashboard.stats.totalTables;
-    document.getElementById("availableTables").textContent = dashboard.stats.available;
-    document.getElementById("occupiedTables").textContent = dashboard.stats.occupied;
-    document.getElementById("activeSessions").textContent = dashboard.stats.activeSessions;
-    document.getElementById("todayTableIncome").textContent = formatCurrency(dashboard.stats.tableIncome);
-    document.getElementById("todayProductSales").textContent = formatCurrency(dashboard.stats.productSales);
-    var net = dashboard.stats.tableIncome + dashboard.stats.productSales
-        - dashboard.stats.discounts - dashboard.stats.expenses;
-    document.getElementById("todayTotal").textContent = formatCurrency(net);
-}
-
-function renderTables() {
-    var container = document.getElementById("tablesGrid");
-    container.innerHTML = "";
-    dashboard.tables.forEach(function (table) {
-        var statusClass = getStatusClass(table.status);
-        var statusText = table.status.charAt(0).toUpperCase() + table.status.slice(1);
-        container.innerHTML +=
-            '<div class="col-6 col-sm-4">' +
-                '<div class="table-card" onclick="openTableDetail(\'' + table.id + '\')">' +
-                    '<h6 class="mb-1">' + table.name + '</h6>' +
-                    '<span class="table-type">' + table.type + '</span>' +
-                    '<div class="mt-2">' +
-                        '<span class="status-dot ' + statusClass + '"></span>' +
-                        '<span class="small">' + statusText + '</span>' +
-                    '</div>' +
-                    (table.sessionTime
-                        ? '<div class="session-time"><i class="fas fa-clock"></i> ' + table.sessionTime + '</div>'
-                        : '') +
-                '</div>' +
-            '</div>';
-    });
-}
-
-function getStatusClass(status) {
-    switch (status) {
-        case 'available': return 'dot-available';
-        case 'occupied': return 'dot-occupied';
-        case 'reserved': return 'dot-reserved';
-        case 'maintenance': return 'dot-maintenance';
-        default: return '';
-    }
-}
-
-function openTableDetail(tableId) {
-    var table = dashboard.tables.find(function (t) { return t.id === tableId; });
-    if (table.status === 'available' || table.status === 'reserved') {
-        window.location.href = 'start-session.html';
-    } else if (table.status === 'occupied') {
-        alert("📋 " + table.name + " — Session in progress");
-    } else {
-        alert(table.name + " — Currently unavailable (" + table.status + ")");
-    }
-}
-
-function refreshData() {
-    updateStatsDisplay();
-    renderTables();
-    alert("✅ Dashboard refreshed!");
-}
-
 // ✅ FIXED: single logout — clears BOTH keys, no duplicate
 function logout() {
     if (confirm("Are you sure you want to logout?")) {
@@ -259,10 +309,6 @@ function logout() {
         sessionStorage.removeItem("cueclubLoggedIn");
         window.location.replace("login.html");
     }
-}
-
-function formatCurrency(amount) {
-    return "Rs. " + amount.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
 <script src="sidebar.js"></script>

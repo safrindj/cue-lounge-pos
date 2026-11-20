@@ -243,7 +243,13 @@ function nextCustomerId(){
     customers.forEach(c => { const m = String(c && c.id ? c.id : "").match(/^P(\d+)$/); if (m) max = Math.max(max, parseInt(m[1], 10)); });
     return "P" + String(max + 1).padStart(4, "0");
 }
-try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) customers = _savedCust; else saveCustomers(); } catch(e){ try { saveCustomers(); } catch(e2){} }
+const _DEFAULT_CUSTOMERS = [
+    { id: "P0001", name: "Perera K.", mobile: "071-9876543", whatsapp: "071-9876543", notes: "", manualDiscount: null, totalSpent: 0, totalVisits: 0, points: 0, regDate: new Date(), history: [] },
+    { id: "P0002", name: "Silva S.", mobile: "077-1234567", whatsapp: "077-1234567", notes: "", manualDiscount: null, totalSpent: 0, totalVisits: 0, points: 0, regDate: new Date(), history: [] },
+    { id: "P0003", name: "Jayasuriya M.", mobile: "076-5551234", whatsapp: "076-5551234", notes: "", manualDiscount: null, totalSpent: 0, totalVisits: 0, points: 0, regDate: new Date(), history: [] },
+    { id: "P0004", name: "Fernando R.", mobile: "070-8889999", whatsapp: "070-8889999", notes: "", manualDiscount: null, totalSpent: 0, totalVisits: 0, points: 0, regDate: new Date(), history: [] }
+];
+try { const _savedCust = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "null"); if (Array.isArray(_savedCust) && _savedCust.length) { customers = _savedCust; } else { customers = _DEFAULT_CUSTOMERS.slice(); saveCustomers(); } } catch(e){ try { customers = _DEFAULT_CUSTOMERS.slice(); saveCustomers(); } catch(e2){} }
 let newCustomerModal;
 
 // ==========================================

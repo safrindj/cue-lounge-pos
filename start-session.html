@@ -129,9 +129,7 @@ function refreshOccupied(){
 }
 function injectCustomerDatalist(){
     if (document.getElementById("customerNames")) return;
-    var custs = [];
-    try { custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || []; } catch(e){ custs = []; }
-    if (!custs.length) custs = [];
+    var custs = (window.loadCustomers ? window.loadCustomers() : []);
     var dl = document.createElement("datalist");
     dl.id = "customerNames";
     custs.forEach(function(c){

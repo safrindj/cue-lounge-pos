@@ -35,9 +35,24 @@
   window.APP_SETTINGS = out;
 })();
 
+// Default customer list — used as fallback for autocomplete until the user saves real customers.
+window.CUE_DEFAULT_CUSTOMERS = [
+  { id: "P0001", name: "Perera K.", mobile: "071-9876543" },
+  { id: "P0002", name: "Silva S.", mobile: "077-1234567" },
+  { id: "P0003", name: "Jayasuriya M.", mobile: "076-5551234" },
+  { id: "P0004", name: "Fernando R.", mobile: "070-8889999" }
+];
+// Load saved customers; if none saved yet, return the default fallback list.
+window.loadCustomers = function () {
+  try {
+    var c = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
+    return (Array.isArray(c) && c.length) ? c : window.CUE_DEFAULT_CUSTOMERS.slice();
+  } catch (e) { return window.CUE_DEFAULT_CUSTOMERS.slice(); }
+};
+
 // Customer name autocomplete — touch-friendly dropdown (shared across pages)
 (function () {
-  function loadCusts() { try { return JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || []; } catch (e) { return []; } }
+  function loadCusts() { return (window.loadCustomers ? window.loadCustomers() : []); }
   function injectStyle() {
     if (document.getElementById("acStyle")) return;
     var s = document.createElement("style"); s.id = "acStyle";
