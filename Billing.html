@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill &amp; Payment — CueClub Manager</title>
+    <title>Bill & Payment — CueClub Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -45,7 +45,7 @@ checkAuth();
 <header class="header-bar d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
         <a href="dashboard.html" class="back-link" aria-label="Back to dashboard"><i class="fas fa-arrow-left"></i></a>
-        <h1 class="h5 mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Bill &amp; Payment</h1>
+        <h1 class="h5 mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Bill & Payment</h1>
     </div>
     <span class="bill-number" id="billNumber">BILL-0001</span>
 </header>
@@ -59,7 +59,7 @@ checkAuth();
                 <p class="small text-muted mb-0" id="sessionPlayers"></p>
             </div>
             <div class="col-5 text-end">
-                <div id="customerInfo" class="mb-1"><span class="loyalty-badge" id="loyaltyBadge">Silver Member</span></div>
+                <div id="customerInfo" class="mb-1"><span class="loyalty-badge" id="loyaltyBadge">Guest</span></div>
                 <small class="text-muted">Bill Date</small>
                 <p class="mb-0" id="billDate"></p>
             </div>
@@ -70,12 +70,12 @@ checkAuth();
         <h2 class="h6 mb-3"><i class="fas fa-calculator me-2"></i>Bill Details</h2>
         <div class="d-flex justify-content-between mb-2"><span>Table Charge</span><span id="tableCharge"></span></div>
         <div class="d-flex justify-content-between mb-2 ps-3 text-muted small"><span id="tableCalc"></span><span></span></div>
-        <div class="d-flex justify-content-between mb-2"><span>Products &amp; Beverages</span><span id="productTotal"></span></div>
+        <div class="d-flex justify-content-between mb-2"><span>Products & Beverages</span><span id="productTotal"></span></div>
         <div class="d-flex justify-content-between mb-2 small text-muted"><span id="productList"></span><span></span></div>
         <div class="divider"></div>
         <div class="d-flex justify-content-between mb-2"><strong>Subtotal</strong><strong id="subtotal"></strong></div>
         <div id="discountSection" class="d-flex justify-content-between mb-2 discount-row">
-            <span>🏷️ Loyalty Discount (<span id="discountPercent">10</span>%)</span>
+            <span>🏷️ Discount (<span id="discountPercent">0</span>%)</span>
             <span>− Rs. <span id="discountAmount">0.00</span></span>
         </div>
         <div class="divider"></div>
@@ -88,31 +88,31 @@ checkAuth();
     </section>
 
     <section class="bill-card p-3 mb-3" id="customerSection" aria-label="Customer and discount">
-        <h2 class="h6 mb-2"><i class="fas fa-user-check me-2"></i>Customer &amp; Discount</h2>
+        <h2 class="h6 mb-2"><i class="fas fa-user-check me-2"></i>Customer & Discount</h2>
         <div class="row align-items-center">
             <div class="col-6">
                 <label class="form-label small mb-1" for="customerMobile">Customer / Mobile</label>
-                <input type="tel" id="customerMobile" class="form-control" placeholder="Enter mobile number" value="077-1234567" autocomplete="tel">
+                <input type="tel" id="customerMobile" class="form-control" placeholder="Enter mobile number" value="" autocomplete="tel">
             </div>
             <div class="col-6">
                 <label class="form-label small mb-1" for="discountLevel">Discount Level</label>
                 <select id="discountLevel" class="form-select">
-                    <option value="0">None — 0%</option><option value="5">Bronze — 5%</option>
-                    <option value="10" selected>Silver — 10%</option><option value="15">Gold — 15%</option><option value="20">VIP — 20%</option>
+                    <option value="0" selected>None — 0%</option><option value="5">Bronze — 5%</option>
+                    <option value="10">Silver — 10%</option><option value="15">Gold — 15%</option><option value="20">VIP — 20%</option>
                 </select>
             </div>
         </div>
-        <p class="small text-muted mt-2 mb-0" id="customerName" aria-live="polite"></p>
+        <p class="small text-muted mt-2 mb-0" id="customerName" aria-live="polite">No customer selected — guest discount applies.</p>
     </section>
 
     <section class="bill-card p-4 mb-4" aria-label="Payment">
         <h2 class="h6 mb-3"><i class="fas fa-money-bill-wave me-2"></i>Payment</h2>
         <div class="row mb-3">
-            <div class="col-6"><label class="form-label small mb-1" for="amountDue">Total Amount</label><div class="form-control bg-light fw-bold" id="amountDue"></div></div>
+            <div class="col-6"><label class="form-label small mb-1" for="amountDue">Total Amount</label><div class="form-control bg-light fw-bold" id="amountDue">Rs. 0.00</div></div>
             <div class="col-6"><label class="form-label small mb-1" for="paidAmount">Paid Amount</label><input type="number" id="paidAmount" class="form-control" value="0" min="0" step="0.01" inputmode="decimal"></div>
         </div>
         <div class="mb-3" id="balanceRow">
-            <div class="d-flex justify-content-between"><span class="label-sm" id="balanceLabel">Balance due</span><span class="fw-bold" id="balance" aria-live="polite"></span></div>
+            <div class="d-flex justify-content-between"><span class="label-sm" id="balanceLabel">Balance due</span><span class="fw-bold" id="balance" aria-live="polite">Rs. 0.00</span></div>
             <div class="form-check form-switch mt-2">
                 <input class="form-check-input" type="checkbox" id="allowCredit">
                 <label class="form-check-label small" for="allowCredit">Allow partial / credit payment</label>
@@ -131,7 +131,7 @@ checkAuth();
     </section>
 
     <div class="no-print">
-        <button class="btn-complete text-white w-100 mb-3" id="completeButton" type="button"><i class="fas fa-check-circle me-2"></i>COMPLETE &amp; SAVE BILL</button>
+        <button class="btn-complete text-white w-100 mb-3" id="completeButton" type="button"><i class="fas fa-check-circle me-2"></i>COMPLETE & SAVE BILL</button>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary flex-grow-1" id="printButton" type="button"><i class="fas fa-print me-1"></i>Print</button>
             <button class="btn btn-outline-secondary flex-grow-1" id="shareButton" type="button"><i class="fab fa-whatsapp me-1"></i>WhatsApp</button>
@@ -139,35 +139,38 @@ checkAuth();
     </div>
 </main>
 
+<script src="app-settings.js"></script>
 <script>
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+
 'use strict';
 
-// Replace these sample values with the selected session's data when connecting this page.
 const bill = {
     billNo: 'BILL-0001',
-    sessionId: 'SES-SAMPLE001',
-    tableName: 'Table 02 — Snooker',
-    durationMin: 150,
-    hourlyRate: 1000,
-    startTime: new Date(Date.now() - 150 * 60 * 1000),
+    sessionId: '',
+    tableName: '',
+    durationMin: 0,
+    hourlyRate: 0,
+    startTime: new Date(),
     endTime: new Date(),
-    players: 4,
-    productTotal: 1150,
-    productList: '2× Coke, 1× Water, 1× Coffee, 2× Chalk',
+    players: [],
+    productTotal: 0,
+    productList: '',
     subtotal: 0,
-    discountPercent: 10,
+    discountPercent: 0,
     discountAmount: 0,
     grandTotal: 0,
     customerId: '',
-    customerName: 'Perera, S.',
-    customerMobile: '077-1234567',
+    customerName: 'Guest Customer',
+    customerMobile: '',
     paidAmount: 0,
     paymentMethod: 'cash',
-    notes: ''
+    notes: '',
+    playerSplit: []
 };
 
-const sampleCustomers = {};
-const money = amount => 'Rs. ' + Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = amount => 'Rs. ' + Number(amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const byId = id => document.getElementById(id);
 
 function formatDate(date) {
@@ -193,13 +196,12 @@ function renderBill() {
     byId('productList').textContent = bill.productList || 'No products';
     byId('subtotal').textContent = money(bill.subtotal);
     byId('billNumber').textContent = bill.billNo;
-    byId('sessionTable').textContent = bill.tableName;
-    byId('sessionTime').textContent = formatTimeRange(bill.startTime, bill.endTime);
-    byId('sessionPlayers').textContent = `👥 ${bill.players} ${bill.players === 1 ? 'Player' : 'Players'}`;
+    byId('sessionTable').textContent = bill.tableName || '—';
+    byId('sessionTime').textContent = bill.durationMin > 0 ? formatTimeRange(bill.startTime, bill.endTime) : '—';
+    byId('sessionPlayers').textContent = bill.players.length > 0 ? `👥 ${bill.players.length} ${bill.players.length === 1 ? 'Player' : 'Players'}` : '';
     byId('billDate').textContent = formatDate(new Date());
     byId('customerMobile').value = bill.customerMobile;
     applyDiscount();
-    lookupCustomer(bill.customerMobile);
 }
 
 function applyDiscount() {
@@ -217,7 +219,10 @@ function applyDiscount() {
 
 function calculateBalance() {
     const input = byId('paidAmount');
-    const paid = Math.max(0, Number(input.value) || 0);
+    const rawPaid = input.value.trim();
+    const parsedPaid = rawPaid === '' ? 0 : Number(rawPaid);
+    const paid = Number.isFinite(parsedPaid) ? Math.max(0, Math.round(parsedPaid * 100) / 100) : 0;
+    if (rawPaid !== '' && paid !== parsedPaid) input.value = paid.toFixed(2);
     bill.paidAmount = paid;
     bill.balance = Math.round((bill.grandTotal - paid) * 100) / 100;
     const balanceEl = byId('balance');
@@ -239,184 +244,33 @@ function calculateBalance() {
 
 function lookupCustomer(value) {
     const normalized = String(value || '').replace(/\D/g, '');
-    const customer = sampleCustomers[normalized];
-    if (customer) {
-        bill.customerName = customer.name;
-        bill.customerMobile = value.trim();
-        byId('customerName').textContent = `Customer: ${customer.name} • ${customer.level} Member (Auto-detected)`;
-        byId('loyaltyBadge').textContent = `${customer.level} Member`;
-        byId('discountLevel').value = String(customer.discount);
+    if (!normalized) {
+        bill.customerName = 'Guest Customer';
+        bill.customerMobile = '';
+        byId('customerName').textContent = 'No customer selected — guest discount applies.';
+        byId('loyaltyBadge').textContent = 'Guest';
+        byId('discountLevel').value = '0';
         applyDiscount();
-    } else {
-        // Check persisted customers for an admin-set manual loyalty discount override
-        let matched = null;
-        try {
-            const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
-            matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized);
-        } catch(e){ matched = null; }
-        if (matched && matched.manualDiscount != null) {
-            bill.customerName = matched.name;
-            bill.customerMobile = value.trim();
+        return;
+    }
+    
+    let matched = null;
+    try {
+        const custs = JSON.parse(localStorage.getItem("cueclubCustomers") || "[]") || [];
+        matched = custs.find(c => String(c.mobile || "").replace(/\D/g, "") === normalized);
+    } catch(e){ matched = null; }
+    
+    if (matched) {
+        bill.customerName = matched.name;
+        bill.customerMobile = value.trim();
+        if (matched.manualDiscount != null) {
             byId('customerName').textContent = `Customer: ${matched.name} • Manual discount ${matched.manualDiscount}% (admin-set)`;
             byId('loyaltyBadge').textContent = `Manual ${matched.manualDiscount}%`;
             byId('discountLevel').value = String(matched.manualDiscount);
-            applyDiscount();
-            return;
+        } else {
+            byId('customerName').textContent = `Customer: ${matched.name}`;
+            byId('loyaltyBadge').textContent = 'Guest';
         }
-        bill.customerName = normalized ? 'Guest Customer' : 'Guest Customer';
-        bill.customerMobile = value.trim();
-        byId('customerName').textContent = normalized ? 'Customer not found — guest discount applies.' : 'No customer selected — guest discount applies.';
-        byId('loyaltyBadge').textContent = 'Guest';
-    }
-}
-
-function selectPayment(method) {
-    if (!['cash', 'card', 'bank'].includes(method)) return;
-    bill.paymentMethod = method;
-    document.querySelectorAll('.payment-option').forEach(option => {
-        const selected = option.dataset.method === method;
-        option.classList.toggle('selected', selected);
-        option.setAttribute('aria-checked', String(selected));
-    });
-}
-
-function toggleCreditNote() {
-    if (byId('allowCredit').checked && bill.balance > 0) {
-        alert('The outstanding balance will be recorded as credit. Confirm this is authorized before saving.');
-    }
-}
-
-function completeBill() {
-    calculateBalance();
-    if (bill.paidAmount > bill.grandTotal) {
-        alert('Paid amount cannot exceed the bill total. Enter the amount received after returning any change.');
-        return;
-    }
-    if (bill.balance > 0 && !byId('allowCredit').checked) {
-        alert('The bill is not fully paid. Enable partial / credit payment to save the outstanding balance.');
-        return;
-    }
-    bill.customerMobile = byId('customerMobile').value.trim();
-    bill.notes = byId('paymentNotes').value.trim();
-    const record = {
-        ...bill,
-        status: bill.balance > 0 ? 'PARTIAL' : 'PAID',
-        savedAt: new Date().toISOString(),
-        allowCredit: byId('allowCredit').checked
-    };
-    try {
-        const saved = JSON.parse(localStorage.getItem('cueclubBills') || '[]');
-        const existingIndex = saved.findIndex(item => item.billNo === record.billNo);
-        if (existingIndex >= 0) saved[existingIndex] = record;
-        else saved.push(record);
-        localStorage.setItem('cueclubBills', JSON.stringify(saved));
-        byId('savedMessage').textContent = `Bill ${bill.billNo} saved successfully (${record.status.toLowerCase()}).`;
-        byId('savedMessage').classList.remove('d-none');
-        byId('completeButton').disabled = true;
-        byId('completeButton').innerHTML = '<i class="fas fa-check-circle me-2"></i>BILL SAVED';
-    } catch (error) {
-        alert('Could not save the bill in this browser. Check available storage and try again.');
-    }
-}
-
-function printBill() {
-    window.print();
-}
-
-function shareWhatsApp() {
-    const phone = byId('customerMobile').value.replace(/\D/g, '');
-    const message = `CueClub bill ${bill.billNo}\n${bill.tableName}\nTotal: ${money(bill.grandTotal)}\nPaid: ${money(bill.paidAmount)}\nBalance: ${money(Math.max(0, bill.balance || 0))}`;
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-byId('discountLevel').addEventListener('change', applyDiscount);
-byId('customerMobile').addEventListener('input', event => lookupCustomer(event.target.value));
-byId('paidAmount').addEventListener('input', calculateBalance);
-byId('allowCredit').addEventListener('change', toggleCreditNote);
-byId('completeButton').addEventListener('click', completeBill);
-byId('printButton').addEventListener('click', printBill);
-byId('shareButton').addEventListener('click', shareWhatsApp);
-document.querySelectorAll('.payment-option').forEach(option => {
-    option.addEventListener('click', () => selectPayment(option.dataset.method));
-    option.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            selectPayment(option.dataset.method);
-        }
-    });
-});
-
-function escapeHtml(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-
-function loadPendingBill(){
-    let pending = null;
-    try { pending = JSON.parse(localStorage.getItem("cueclubPendingBill") || "null"); } catch(e){ pending = null; }
-    if (!pending) return;
-    localStorage.removeItem("cueclubPendingBill");
-    bill.billNo = pending.billNo;
-    bill.sessionId = pending.sessionId;
-    bill.tableName = pending.tableName + " — " + (pending.tableType || "");
-    bill.durationMin = pending.durationMin;
-    bill.hourlyRate = pending.hourlyRate;
-    bill.startTime = new Date(pending.startTime);
-    bill.endTime = new Date(pending.endTime);
-    bill.players = (pending.players || []).length;
-    bill.productTotal = (pending.players || []).reduce((t, p) => t + (p.itemsSubtotal || 0), 0);
-    const agg = {};
-    (pending.players || []).forEach(p => (p.items || []).forEach(it => { agg[it.name] = (agg[it.name] || 0) + Number(it.qty || 0); }));
-    bill.productList = Object.keys(agg).map(k => agg[k] + "× " + k).join(", ") || "No products";
-    bill.customerMobile = "";
-    bill.discountPercent = 0;
-    bill.playerSplit = pending.players || [];
-}
-
-function buildWhatsAppText(p, tableShare, total){
-    const biz = (window.APP_SETTINGS && window.APP_SETTINGS.bizName) || "CueClub";
-    const items = (p.items || []).length
-        ? p.items.map(it => "  " + it.name + " x " + it.qty + " = " + money(it.lineTotal)).join("\n")
-        : "  (none)";
-    return "*" + biz + "*\nBill " + bill.billNo + "\nTable: " + bill.tableName +
-        "\nDuration: " + bill.durationMin + " min\nDate: " + formatDate(new Date()) +
-        "\n\nYour share:\n  Table time: " + money(tableShare) + "\nItems:\n" + items +
-        "\n\n*Your total: " + money(total) + "*\nThank you!";
-}
-
-function renderSplit(){
-    const section = byId("splitSection");
-    const list = byId("playerSplitList");
-    if (!bill.playerSplit || bill.playerSplit.length === 0){ section.style.display = "none"; return; }
-    section.style.display = "";
-    const n = bill.playerSplit.length;
-    const tableShare = (bill.durationMin / 60 * bill.hourlyRate) / n;
-    const ratio = bill.subtotal > 0 ? bill.grandTotal / bill.subtotal : 1;
-    list.innerHTML = bill.playerSplit.map(p => {
-        const itemsHtml = (p.items || []).length
-            ? p.items.map(it => '<div class="d-flex justify-content-between small text-muted"><span>' + escapeHtml(it.name) + ' &times; ' + it.qty + '</span><span>' + money(it.lineTotal) + '</span></div>').join("")
-            : '<div class="small text-muted">No items</div>';
-        const sub = tableShare + (p.itemsSubtotal || 0);
-        const total = sub * ratio;
-        const waText = buildWhatsAppText(p, tableShare, total);
-        const digits = String(p.name || "").replace(/\D/g, "");
-        const waUrl = digits.length >= 7
-            ? "https://wa.me/" + digits + "?text=" + encodeURIComponent(waText)
-            : "https://wa.me/?text=" + encodeURIComponent(waText);
-        return '<div class="border rounded p-3 mb-2" style="border-left:4px solid var(--primary)">'
-            + '<div class="d-flex justify-content-between align-items-center mb-2">'
-            +   '<h6 class="mb-0"><i class="fas fa-user me-1"></i>' + escapeHtml(p.name) + '</h6>'
-            +   '<a class="btn btn-sm btn-success" href="' + waUrl + '" target="_blank" rel="noopener"><i class="fab fa-whatsapp me-1"></i>WhatsApp</a>'
-            + '</div>'
-            + '<div class="d-flex justify-content-between small"><span class="text-muted">Table share (' + n + ' player' + (n>1?'s':'') + ')</span><span>' + money(tableShare) + '</span></div>'
-            + itemsHtml
-            + '<div class="d-flex justify-content-between fw-bold mt-2"><span>Total' + (bill.discountPercent > 0 ? ' (incl. ' + bill.discountPercent + '% disc)' : '') + '</span><span class="text-danger">' + money(total) + '</span></div>'
-            + '</div>';
-    }).join("");
-}
-
-loadPendingBill();
-renderBill();
-renderSplit();
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
+        applyDiscount();
+    } else {
+        bill
