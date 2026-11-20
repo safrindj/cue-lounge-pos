@@ -45,21 +45,19 @@
         .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .empty-state { text-align: center; padding: 50px 20px; color: #888; }
         .badge-customer { background: var(--secondary); color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; }
+        dialog { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 0; max-width: 420px; width: 90%; }
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
-  if (!isLoggedIn) {
-    window.location.replace("login.html");
-  }
+  if (!isLoggedIn) { window.location.replace("login.html"); }
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
@@ -74,9 +72,7 @@ checkAuth();
 
 <div class="container px-3 mt-4" id="mainWrapper">
 
-    <!-- =================================== -->
     <!-- BILL LIST VIEW -->
-    <!-- =================================== -->
     <div class="list-container">
         <!-- Search & Filters -->
         <div class="search-box mb-3">
@@ -100,7 +96,7 @@ checkAuth();
         </div>
 
         <!-- Bill Count -->
-        <p class="small text-muted mb-3" id="resultCount">Showing 1–10 of 1,245 bills</p>
+        <p class="small text-muted mb-3" id="resultCount">Loading bills...</p>
 
         <!-- Bill List -->
         <div id="billList">
@@ -108,20 +104,12 @@ checkAuth();
         </div>
 
         <!-- Pagination -->
-        <div class="pagination-wrap">
-            <button class="page-btn">&laquo;</button>
-            <button class="page-btn active">1</button>
-            <button class="page-btn">2</button>
-            <button class="page-btn">3</button>
-            <button class="page-btn">4</button>
-            <button class="page-btn">5</button>
-            <button class="page-btn">&raquo;</button>
+        <div class="pagination-wrap" id="paginationArea">
+            <!-- Rendered dynamically -->
         </div>
     </div>
 
-    <!-- =================================== -->
     <!-- BILL DETAIL VIEW -->
-    <!-- =================================== -->
     <div class="detail-container" id="detailView">
         <button class="btn btn-sm btn-secondary mb-3" onclick="goBackToList()">
             <i class="fas fa-arrow-left me-1"></i> Back to Bill List
@@ -131,20 +119,20 @@ checkAuth();
             <!-- Bill Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">🧾 Invoice</h5>
-                <span class="bill-number" id="detailBillNo">BILL-0892</span>
+                <span class="bill-number" id="detailBillNo">—</span>
             </div>
             
             <div class="row mb-3">
                 <div class="col-7">
-                    <p class="mb-1"><i class="fas fa-calendar-day me-2"></i> <span id="detailDate">19 Nov 2026</span></p>
-                    <p class="mb-1"><i class="fas fa-clock me-2"></i> <span id="detailTime">18:45 – 21:00 (2h 15m)</span></p>
-                    <p class="mb-1"><i class="fas fa-map-marker-alt me-2"></i> <span id="detailTable">Table 05 — Snooker</span></p>
+                    <p class="mb-1"><i class="fas fa-calendar-day me-2"></i> <span id="detailDate">—</span></p>
+                    <p class="mb-1"><i class="fas fa-clock me-2"></i> <span id="detailTime">—</span></p>
+                    <p class="mb-1"><i class="fas fa-map-marker-alt me-2"></i> <span id="detailTable">—</span></p>
                 </div>
                 <div class="col-5 text-end">
                     <p class="mb-1">
-                        <span class="badge-customer" id="detailCustomerName">Perera, K.</span>
+                        <span class="badge-customer" id="detailCustomerName">Guest</span>
                     </p>
-                    <p class="small text-muted mb-0" id="detailCustomerMobile">📱 071-9876543</p>
+                    <p class="small text-muted mb-0" id="detailCustomerMobile">—</p>
                 </div>
             </div>
 
@@ -153,30 +141,30 @@ checkAuth();
             <!-- Bill Items -->
             <div id="detailItems">
                 <div class="detail-row">
-                    <span>Table Charge (2.25h × Rs. 800)</span>
-                    <span id="detailTableCharge">Rs. 1,800.00</span>
+                    <span>Table Charge</span>
+                    <span id="detailTableCharge">Rs. 0.00</span>
                 </div>
                 <div class="detail-row">
                     <span>Products</span>
-                    <span id="detailProducts">Rs. 650.00</span>
+                    <span id="detailProducts">Rs. 0.00</span>
                 </div>
                 <div class="detail-row small text-muted">
-                    <span>&nbsp;&nbsp; 2× Coca-Cola, 1× Water Bottle</span>
-                    <span></span>
+                    <span>&nbsp;&nbsp;</span>
+                    <span id="detailProductList"></span>
                 </div>
                 <div class="divider"></div>
                 <div class="detail-row">
                     <strong>Subtotal</strong>
-                    <strong id="detailSubtotal">Rs. 2,450.00</strong>
+                    <strong id="detailSubtotal">Rs. 0.00</strong>
                 </div>
                 <div class="detail-row text-success">
-                    <span>🏷️ Discount (10%)</span>
-                    <span>- Rs. 245.00</span>
+                    <span>🏷️ Discount (<span id="detailDiscountPct">0</span>%)</span>
+                    <span>- Rs. <span id="detailDiscountAmt">0.00</span></span>
                 </div>
                 <div class="divider"></div>
                 <div class="detail-row detail-total">
                     <span>💰 GRAND TOTAL</span>
-                    <span id="detailGrandTotal">Rs. 2,205.00</span>
+                    <span id="detailGrandTotal">Rs. 0.00</span>
                 </div>
             </div>
 
@@ -186,19 +174,19 @@ checkAuth();
             <div class="alert alert-success mb-0" id="paymentStatus">
                 <div class="d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-check-circle me-2"></i><strong>Paid — Cash</strong></span>
-                    <span id="detailPaidAmount">Rs. 2,205.00</span>
+                    <span id="detailPaidAmount">Rs. 0.00</span>
                 </div>
             </div>
             <div class="alert alert-warning mb-0 d-none" id="partialPaymentStatus">
                 <div class="d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-clock me-2"></i><strong>Partial Payment</strong></span>
-                    <span>Paid: Rs. 1,500.00<br>Balance: Rs. 705.00</span>
+                    <span id="partialInfo">Paid: Rs. 0.00<br>Balance: Rs. 0.00</span>
                 </div>
             </div>
             <div class="alert alert-danger mb-0 d-none" id="creditStatus">
                 <div class="d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-exclamation-triangle me-2"></i><strong>Credit / Owing</strong></span>
-                    <span>Due: Rs. 2,205.00</span>
+                    <span id="creditInfo">Due: Rs. 0.00</span>
                 </div>
             </div>
 
@@ -224,26 +212,33 @@ checkAuth();
 </div>
 
 <script>
-// ==========================================
-// CONFIG
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-// Sample Bill Data
-let bills = [];
-
-// ==========================================
-// BILL LIST, FILTERS & DETAILS
-// ==========================================
-const currency = amount => `Rs. ${Number(amount || 0).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const BILLS_KEY = "cueclubBills";
+const currency = amount => {
+    const value = Number(amount);
+    return `Rs. ${(Number.isFinite(value) ? value : 0).toLocaleString("en-LK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const pageSize = 10;
 let currentPage = 1;
+let allBills = [];
 let selectedBill = null;
 
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, character => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[character]));
+}
+
+function loadBills() {
+    try {
+        const storedBills = JSON.parse(localStorage.getItem(BILLS_KEY) || "[]");
+        allBills = Array.isArray(storedBills) ? storedBills : [];
+    } catch(e) {
+        allBills = [];
+    }
+    filterBills();
 }
 
 function getFilteredBills() {
@@ -256,17 +251,27 @@ function getFilteredBills() {
     weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    return bills.filter(bill => {
-        const searchable = `${bill.id} ${bill.customer} ${bill.mobile}`.toLowerCase();
+    return allBills.filter(bill => {
+        const billNo = bill.billNo || bill.id || "";
+        const customer = (bill.customerName || bill.customer || "Guest");
+        const mobile = bill.customerMobile || "";
+        const searchable = `${billNo} ${customer} ${mobile}`.toLowerCase();
         const matchesQuery = !query || searchable.includes(query);
-        const matchesStatus = status === "all" || bill.status === status;
-        const billDate = new Date(bill.date.getFullYear(), bill.date.getMonth(), bill.date.getDate());
-        let matchesDate = true;
-        if (dateRange === "today") matchesDate = billDate.getTime() === today.getTime();
-        if (dateRange === "week") matchesDate = billDate >= weekStart && billDate <= today;
-        if (dateRange === "month") matchesDate = billDate >= monthStart && billDate <= today;
+        const rawStatus = String(bill.status || "paid").toLowerCase();
+        const billStatus = rawStatus === "partial" ? "pending" : rawStatus;
+        const matchesStatus = status === "all" || billStatus === status;
+        const dateValue = bill.savedAt || bill.date;
+        const billDate = dateValue ? new Date(dateValue) : null;
+        const hasValidDate = billDate && !Number.isNaN(billDate.getTime());
+        const dateOnly = hasValidDate
+            ? new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate())
+            : null;
+        let matchesDate = dateRange === "all";
+        if (dateRange === "today") matchesDate = !!dateOnly && dateOnly.getTime() === today.getTime();
+        if (dateRange === "week") matchesDate = !!dateOnly && dateOnly >= weekStart && dateOnly <= today;
+        if (dateRange === "month") matchesDate = !!dateOnly && dateOnly >= monthStart && dateOnly <= today;
         return matchesQuery && matchesStatus && matchesDate;
-    }).sort((a, b) => b.date - a.date || b.id.localeCompare(a.id));
+    }).sort((a, b) => new Date(b.savedAt || b.date) - new Date(a.savedAt || a.date));
 }
 
 function filterBills() {
@@ -287,128 +292,16 @@ function renderBills() {
         : "No bills match your filters";
 
     if (!visibleBills.length) {
-        billList.innerHTML = '<div class="empty-state"><i class="fas fa-receipt fa-2x mb-3"></i><p class="mb-0">No bills found. Try changing your search or filters.</p></div>';
+        billList.innerHTML = '<div class="empty-state"><i class="fas fa-receipt fa-2x mb-3"></i><p class="mb-0">No bills found.</p></div>';
     } else {
         billList.innerHTML = visibleBills.map(bill => {
-            const statusLabel = bill.status === "paid" ? "Paid" : bill.status === "pending" ? "Partial" : "Credit";
-            const statusClass = bill.status === "paid" ? "status-paid" : bill.status === "pending" ? "status-pending" : "status-credit";
-            return `<div class="bill-card" role="button" tabindex="0" onclick="openBill('${escapeHTML(bill.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openBill('${escapeHTML(bill.id)}')}">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div><span class="bill-number">${escapeHTML(bill.id)}</span><div class="mt-2 fw-semibold">${escapeHTML(bill.customer)}</div>
-                    <div class="small text-muted">${escapeHTML(bill.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }))} · ${escapeHTML(bill.time)}</div>
-                    <div class="small text-muted">${escapeHTML(bill.table)}</div></div>
-                    <div class="text-end"><div class="amount-lg">${currency(bill.grandTotal)}</div><div class="${statusClass} small fw-semibold">${statusLabel}</div></div>
-                </div>
-            </div>`;
-        }).join("");
-    }
-
-    const pagination = document.querySelector(".pagination-wrap");
-    pagination.innerHTML = `<button class="page-btn" ${currentPage === 1 ? "disabled" : ""} data-page="${currentPage - 1}" aria-label="Previous page">&laquo;</button>` +
-        Array.from({ length: totalPages }, (_, index) => `<button class="page-btn ${currentPage === index + 1 ? "active" : ""}" data-page="${index + 1}" aria-current="${currentPage === index + 1 ? "page" : "false"}">${index + 1}</button>`).join("") +
-        `<button class="page-btn" ${currentPage === totalPages ? "disabled" : ""} data-page="${currentPage + 1}" aria-label="Next page">&raquo;</button>`;
-    pagination.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => {
-        currentPage = Number(button.dataset.page);
-        renderBills();
-    }));
-}
-
-function openBill(id) {
-    const bill = bills.find(item => item.id === id);
-    if (!bill) return;
-    selectedBill = bill;
-    document.getElementById("mainWrapper").classList.add("active-view");
-    document.getElementById("pageTitle").innerHTML = '<i class="fas fa-file-invoice me-2"></i> Bill Details';
-    document.getElementById("detailBillNo").textContent = bill.id;
-    document.getElementById("detailDate").textContent = bill.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    document.getElementById("detailTime").textContent = `${bill.time} (${bill.duration})`;
-    document.getElementById("detailTable").textContent = bill.table;
-    document.getElementById("detailCustomerName").textContent = bill.customer;
-    document.getElementById("detailCustomerMobile").textContent = bill.mobile ? `📱 ${bill.mobile}` : "Walk-in customer";
-    document.getElementById("detailTableCharge").textContent = currency(bill.tableCharge);
-    document.getElementById("detailProducts").textContent = currency(bill.products);
-    document.getElementById("detailSubtotal").textContent = currency(bill.subtotal);
-    document.getElementById("detailGrandTotal").textContent = currency(bill.grandTotal);
-
-    const productDescription = document.querySelector("#detailItems .detail-row.small.text-muted span:first-child");
-    productDescription.textContent = bill.productList ? `   ${bill.productList}` : "No products";
-    const discountRow = document.querySelector("#detailItems .detail-row.text-success");
-    discountRow.innerHTML = `<span>🏷️ Discount (${bill.discountPercent}%)</span><span>- ${currency(bill.discountAmount)}</span>`;
-
-    document.getElementById("paymentStatus").classList.toggle("d-none", bill.status !== "paid");
-    document.getElementById("partialPaymentStatus").classList.toggle("d-none", bill.status !== "pending");
-    document.getElementById("creditStatus").classList.toggle("d-none", bill.status !== "credit");
-    document.querySelector("#paymentStatus strong").textContent = `Paid — ${bill.paymentMethod}`;
-    document.getElementById("detailPaidAmount").textContent = currency(bill.paidAmount);
-    document.querySelector("#partialPaymentStatus span:last-child").innerHTML = `Paid: ${currency(bill.paidAmount)}<br>Balance: ${currency(bill.balance)}`;
-    document.querySelector("#creditStatus span:last-child").textContent = `Due: ${currency(bill.balance)}`;
-}
-
-function goBackToList() {
-    document.getElementById("mainWrapper").classList.remove("active-view");
-    document.getElementById("pageTitle").innerHTML = '<i class="fas fa-file-invoice me-2"></i> Bills & History';
-    document.getElementById("mainBackBtn").href = "dashboard.html";
-}
-
-function refreshData() {
-    filterBills();
-    if (selectedBill) openBill(selectedBill.id);
-}
-
-function printBill() {
-    if (selectedBill) window.print();
-}
-
-function shareWhatsApp() {
-    if (!selectedBill) return;
-    const bill = selectedBill;
-    const message = `CueClub bill ${bill.id}\nCustomer: ${bill.customer}\nTotal: ${currency(bill.grandTotal)}\nPaid: ${currency(bill.paidAmount)}\nBalance: ${currency(bill.balance)}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
-}
-
-function downloadPDF() {
-    printBill();
-}
-
-function editBill() {
-    if (!selectedBill) return;
-    const bill = selectedBill;
-    let dialog = document.getElementById("paymentDialog");
-    if (!dialog) {
-        dialog = document.createElement("dialog");
-        dialog.id = "paymentDialog";
-        dialog.innerHTML = `<form method="dialog" class="p-3" id="paymentForm"><h5>Record a payment</h5><p class="small text-muted" id="paymentBalance"></p><label class="form-label" for="paymentAmount">Amount received (Rs.)</label><input class="form-control mb-3" type="number" id="paymentAmount" min="0.01" step="0.01" required><div class="d-flex gap-2 justify-content-end"><button class="btn btn-outline-secondary" value="cancel">Cancel</button><button class="btn btn-success" id="savePayment" value="save">Save payment</button></div></form>`;
-        document.body.appendChild(dialog);
-        document.getElementById("paymentForm").addEventListener("submit", event => {
-            if (event.submitter?.id !== "savePayment") return;
-            event.preventDefault();
-            const amount = Number(document.getElementById("paymentAmount").value);
-            const current = bills.find(item => item.id === dialog.dataset.billId);
-            if (!current || !Number.isFinite(amount) || amount <= 0 || amount > current.balance) return;
-            current.paidAmount = Math.round((current.paidAmount + amount) * 100) / 100;
-            current.balance = Math.max(0, Math.round((current.grandTotal - current.paidAmount) * 100) / 100);
-            current.status = current.balance === 0 ? "paid" : "pending";
-            current.paymentMethod = current.balance === 0 ? "Recorded payment" : "Cash (Partial)";
-            dialog.close();
-            openBill(current.id);
-            renderBills();
-        });
-    }
-    dialog.dataset.billId = bill.id;
-    document.getElementById("paymentBalance").textContent = `Outstanding balance: ${currency(bill.balance)}`;
-    const amountInput = document.getElementById("paymentAmount");
-    amountInput.max = bill.balance;
-    amountInput.value = bill.balance || "";
-    amountInput.disabled = bill.balance <= 0;
-    document.getElementById("savePayment").disabled = bill.balance <= 0;
-    if (typeof dialog.showModal === "function") dialog.showModal();
-}
-
-/* Top-left back arrow always navigates to dashboard.html.
-   In bill detail view, use the "Back to Bill List" button to return to the list. */
-
-renderBills();
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
+            const id = bill.billNo || bill.id;
+            const status = (bill.status || "paid").toLowerCase();
+            const statusLabel = status === "paid" ? "Paid" : status === "partial" || status === "pending" ? "Partial" : "Credit";
+            const statusClass = status === "paid" ? "status-paid" : status === "partial" || status === "pending" ? "status-pending" : "status-credit";
+            const customer = escapeHTML(bill.customerName || bill.customer || "Guest");
+            const date = new Date(bill.savedAt || bill.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+            const time = new Date(bill.savedAt || bill.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+            const table = escapeHTML(bill.tableName || "—");
+            return `<div class="bill-card" role="button" tabindex="0" onclick="openBill('${escape
+    
