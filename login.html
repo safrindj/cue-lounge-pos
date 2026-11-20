@@ -168,9 +168,9 @@
 
 <div class="login-container">
     <div class="app-logo">
-        <span style="font-size: 2.5rem;">🏪</span>
-        <h2>Cue Lounge POS</h2>
-        <p>Welcome Back! Please Select & Login</p>
+        <span style="font-size: 2.5rem;">🎱</span>
+        <h2>CueClub Manager</h2>
+        <p>Welcome Back! Please Select & Enter Your PIN</p>
     </div>
 
     <!-- Staff Selection -->
@@ -187,12 +187,12 @@
             <div class="role-dot dot-staff"></div>
             <div>
                 <div class="fw-semibold">Staff</div>
-                <div class="small text-muted">Sell & View Only</div>
+                <div class="small text-muted">Limited Access</div>
             </div>
         </div>
     </div>
-    <button class="new-staff-btn" onclick="alert('Contact Admin to add new staff members.')">
-        <i class="fas fa-user-plus me-1"></i> Not Listed? Register New Staff
+    <button class="new-staff-btn" onclick="alert('Please contact Admin to add new staff members.')">
+        <i class="fas fa-user-plus me-1"></i> Not Listed? Contact Admin
     </button>
 
     <!-- PIN Input -->
@@ -220,7 +220,7 @@
         <button class="num-btn" onclick="inputPin('0')">0</button>
         
         <button class="num-btn sm" onclick="clearPin()">
-            <i class="fas fa-undo"></i> Clear
+            <i class="fas fa-redo"></i> Clear
         </button>
         <button class="num-btn sm" onclick="deleteLast()">
             <i class="fas fa-backspace"></i> Delete
@@ -233,70 +233,50 @@
 
     <!-- Login Button -->
     <button class="login-btn" id="loginBtn" onclick="attemptLogin()" disabled>
-        <i class="fas fa-lock-open me-1"></i> Login / Start Shift
+        <i class="fas fa-sign-in-alt me-1"></i> Login
     </button>
 
     <!-- Footer Info -->
     <div class="footer-info">
-        <p class="mb-1">🕒 <span id="currentDateTime"></span></p>
-        <p class="mb-0">🔒 Auto-lock: 5 minutes of inactivity</p>
+        <p class="mb-1"><i class="fas fa-clock me-1"></i> <span id="currentDateTime"></span></p>
+        <p class="mb-0">🔒 Your session is private and secure</p>
     </div>
 </div>
 
 <script>
-// ==========================================
-// DATA & STATE
-// ==========================================
-let selectedStaff = {
-    id: "admin",
-    name: "Admin",
-    pin: "9161",
-    role: "admin"
+// PIN Codes — change these as needed
+const CREDENTIALS = {
+    admin: { pin: "9161", name: "Admin", role: "admin" },
+    staff: { pin: "2131", name: "Staff", role: "staff" }
 };
-let enteredPin = "";
 
-// ==========================================
-// STAFF SELECTION
-// ==========================================
+let selectedStaff = CREDENTIALS.admin;
+let enteredPin = "";
+let isLoggingIn = false;
+
+// Staff Selection
 document.querySelectorAll(".staff-option").forEach(option => {
     option.addEventListener("click", function() {
-        // Clear selection
         document.querySelectorAll(".staff-option").forEach(o => o.classList.remove("selected"));
-        // Select this one
         this.classList.add("selected");
         
-        const staffType = this.getAttribute("data-staff");
-        const staffPin = this.getAttribute("data-pin");
-        const staffName = this.querySelector(".fw-semibold").textContent;
-        
-        selectedStaff = {
-            id: staffType,
-            name: staffName,
-            pin: staffPin,
-            role: staffType
-        };
-        
-        // Reset PIN
+        if (isLoggingIn) return;
+        const type = this.getAttribute("data-staff");
+        selectedStaff = CREDENTIALS[type];
         clearPin();
     });
 });
 
-// ==========================================
-// PIN HANDLING
-// ==========================================
+// PIN Handling
 function inputPin(digit) {
-    if (enteredPin.length >= 4) return;
-    
+    if (isLoggingIn || enteredPin.length >= 4) return;
     enteredPin += digit;
     updatePinDisplay();
-    
-    if (enteredPin.length === 4) {
-        document.getElementById("loginBtn").disabled = false;
-        setTimeout(attemptLogin, 250); // auto-login on correct PIN — no button press needed
-    }
+    document.getElementById("loginBtn").disabled = enteredPin.length !== 4;
 }
 
 function deleteLast() {
+    if (isLoggingIn) return;
     enteredPin = enteredPin.slice(0, -1);
     updatePinDisplay();
     document.getElementById("loginBtn").disabled = enteredPin.length !== 4;
@@ -312,71 +292,67 @@ function clearPin() {
 function updatePinDisplay() {
     const dots = document.querySelectorAll(".pin-dot");
     dots.forEach((dot, i) => {
-        if (i < enteredPin.length) {
-            dot.classList.add("filled");
-        } else {
-            dot.classList.remove("filled");
-        }
+        dot.classList.toggle("filled", i < enteredPin.length);
     });
 }
 
-// ==========================================
-// LOGIN ATTEMPT
-// ==========================================
+// Login Attempt
 function attemptLogin() {
-    if (enteredPin.length !== 4) return;
-    const PIN_ADMIN = "9161", PIN_STAFF = "2131";
-    let role = null, name = null;
-    if (enteredPin === PIN_ADMIN) { role = "admin"; name = "Admin"; }
-    else if (enteredPin === PIN_STAFF) { role = "staff"; name = "Staff"; }
-
-    if (role) {
-        sessionStorage.setItem("cueclubLoggedIn", "true");
-        sessionStorage.setItem("currentStaff", JSON.stringify({ name: name, role: role, loginTime: new Date().toISOString() }));
-        document.getElementById("loginBtn").innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
-        document.getElementById("errorMsg").style.display = "none";
-        setTimeout(() => { window.location.href = "dashboard.html"; }, 500);
-    } else {
-        document.getElementById("errorMsg").style.display = "block";
+    if (isLoggingIn || enteredPin.length !== 4) return;
+    
+    if (enteredPin === selectedStaff.pin) {
+        isLoggingIn = true;
         document.getElementById("loginBtn").disabled = true;
+        // Successful login — store session
+        sessionStorage.setItem("cueclubLoggedIn", "true");
+        sessionStorage.setItem("currentStaff", JSON.stringify({
+            name: selectedStaff.name,
+            role: selectedStaff.role,
+            loginTime: new Date().toISOString()
+        }));
+        
+        document.getElementById("errorMsg").style.display = "none";
+        document.getElementById("loginBtn").innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
+        
+        setTimeout(() => {
+            window.location.href = "dashboard.html";
+        }, 600);
+    } else {
+        // Wrong PIN — clear the entry, then show the error.
+        clearPin();
+        document.getElementById("errorMsg").style.display = "block";
         document.querySelector(".login-container").animate([
-            { transform: 'translateX(-5px)' },
-            { transform: 'translateX(5px)' },
-            { transform: 'translateX(-5px)' },
+            { transform: 'translateX(-6px)' },
+            { transform: 'translateX(6px)' },
+            { transform: 'translateX(-6px)' },
             { transform: 'translateX(0)' }
         ], { duration: 300 });
-        clearPin();
     }
 }
 
-// ==========================================
-// DATE & TIME
-// ==========================================
+// Update Date/Time Display
 function updateDateTime() {
     const now = new Date();
-    const options = { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
+    const dateStr = now.toLocaleDateString('en-LK', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    const timeStr = now.toLocaleTimeString('en-LK', {
         hour: '2-digit',
         minute: '2-digit'
-    };
-    document.getElementById("currentDateTime").textContent = 
-        now.toLocaleDateString('en-LK', options);
+    });
+    document.getElementById("currentDateTime").textContent = `${dateStr} • ${timeStr}`;
 }
 updateDateTime();
 setInterval(updateDateTime, 60000);
 
-// Keyboard support
-document.addEventListener("keydown", function(e) {
-    if (e.key >= '0' && e.key <= '9') {
-        inputPin(e.key);
-    } else if (e.key === "Backspace") {
-        deleteLast();
-    } else if (e.key === "Enter" && enteredPin.length === 4) {
-        attemptLogin();
-    }
+// Keyboard Support
+document.addEventListener("keydown", e => {
+    if (e.key >= '0' && e.key <= '9') inputPin(e.key);
+    else if (e.key === "Backspace") deleteLast();
+    else if (e.key === "Enter" && enteredPin.length === 4) attemptLogin();
 });
 </script>
 
