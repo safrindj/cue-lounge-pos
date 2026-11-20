@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — CueClub Manager</title>
     <script>
-        // ✅ FIXED: accepts EITHER session key — no more redirect loop
         (function () {
-            var loggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null)
-                || sessionStorage.getItem("currentStaff") !== null;
+            var loggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
             if (!loggedIn) {
                 window.location.replace("login.html");
             }
@@ -97,7 +95,7 @@
             </div>
         </div>
     </div>
-    <!-- 💰 Today's Income Summary (real, from saved bills) -->
+    <!-- 💰 Today's Income Summary -->
     <h5 class="section-title mb-2"><i class="fas fa-coins me-2"></i> Today's Overview</h5>
     <div class="income-card mb-4">
         <div class="income-row">
@@ -118,10 +116,10 @@
         </div>
         <div class="empty-note mt-2" id="todayNote"></div>
     </div>
-    <!-- 🎱 Table Status Grid (real occupancy from active sessions) -->
+    <!-- 🎱 Table Status Grid -->
     <h5 class="section-title mb-2"><i class="fas fa-border-all me-2"></i> Table Status</h5>
     <div class="row g-2 mb-4" id="tablesGrid"></div>
-    <!-- ⚡ Quick Actions — all pages -->
+    <!-- ⚡ Quick Actions -->
     <h5 class="section-title mb-2"><i class="fas fa-bolt me-2"></i> Quick Actions</h5>
     <div class="row g-2 mb-5">
         <div class="col-4 col-md-3"><a href="start-session.html" class="quick-btn bg-success text-white d-block"><i class="fas fa-play-circle fa-lg d-block mb-1"></i>New Session</a></div>
@@ -131,16 +129,16 @@
         <div class="col-4 col-md-3"><a href="customers.html" class="quick-btn bg-secondary text-white d-block"><i class="fas fa-users fa-lg d-block mb-1"></i>Customers</a></div>
         <div class="col-4 col-md-3"><a href="products.html" class="quick-btn bg-dark text-white d-block"><i class="fas fa-boxes fa-lg d-block mb-1"></i>Products</a></div>
         <div class="col-4 col-md-3"><a href="expenses.html" class="quick-btn bg-danger text-white d-block"><i class="fas fa-receipt fa-lg d-block mb-1"></i>Expenses</a></div>
-        <div class="col-4 col-md-3"><a href="monthly-summary.html" class="quick-btn d-block" style="background:#6f42c1;color:white;"><i class="fas fa-calendar-alt fa-lg d-block mb-1"></i>Monthly Summary</a></div>
-        <div class="col-4 col-md-3"><a href="sales-reports.html" class="quick-btn d-block" style="background:#20c997;color:white;"><i class="fas fa-chart-bar fa-lg d-block mb-1"></i>Sales Reports</a></div>
-        <div class="col-4 col-md-3"><a href="settings.html" class="quick-btn d-block" style="background:#1a2c42;color:#e8b832;"><i class="fas fa-cog fa-lg d-block mb-1"></i>Settings</a></div>
+        <div class="col-4 col-md-3"><a href="monthly-summary.html" class="quick-btn" style="background:#6f42c1;color:white;"><i class="fas fa-calendar-alt fa-lg d-block mb-1"></i>Monthly Summary</a></div>
+        <div class="col-4 col-md-3"><a href="sales-reports.html" class="quick-btn" style="background:#20c997;color:white;"><i class="fas fa-chart-bar fa-lg d-block mb-1"></i>Sales Reports</a></div>
+        <div class="col-4 col-md-3"><a href="settings.html" class="quick-btn" style="background:#1a2c42;color:#e8b832;"><i class="fas fa-cog fa-lg d-block mb-1"></i>Settings</a></div>
     </div>
 </div>
 <script src="app-settings.js"></script>
 <script>
-// ==========================================
-// REAL DATA — no dummy bookings / fake income
-// ==========================================
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
+
 const TABLES = [
     { id: "T01", name: "Table 01", type: "Snooker" },
     { id: "T02", name: "Table 02", type: "Snooker" },
@@ -158,6 +156,7 @@ function loadActiveSessions() {
         return Array.isArray(s) ? s : [];
     } catch (e) { return []; }
 }
+
 function loadTodaysBills() {
     var out = { tableIncome: 0, productSales: 0, discounts: 0, net: 0, count: 0 };
     try {
@@ -166,9 +165,10 @@ function loadTodaysBills() {
         var today = new Date().toDateString();
         bills.forEach(function (b) {
             if (!b) return;
-            var d;
-            try { d = new Date(b.savedAt || b.endTime || Date.now()); } catch (e) { d = new Date(); }
-            if (d.toDateString() !== today) return;
+            var dateValue = b.savedAt || b.endTime;
+            if (!dateValue) return;
+            var d = new Date(dateValue);
+            if (!Number.isFinite(d.getTime()) || d.toDateString() !== today) return;
             var productTotal = Number(b.productTotal) || 0;
             var subtotal = Number(b.subtotal);
             if (!(subtotal >= 0)) subtotal = productTotal;
@@ -185,20 +185,28 @@ function loadTodaysBills() {
     } catch (e) {}
     return out;
 }
+
 function sessionElapsedMs(sess) {
     try {
         var start = new Date(sess.startTime).getTime();
-        if (!start) return 0;
-        var pausedMs = Number(sess.totalPausedDuration) || 0;
-        var endMs;
+        if (!Number.isFinite(start)) return 0;
+        var pausedMs = Number(sess.totalPausedDuration);
+        if (!Number.isFinite(pausedMs) || pausedMs < 0) pausedMs = 0;
+        var endMs = Date.now();
         if (sess.isPaused && sess.pausedTime) {
-            endMs = new Date(sess.pausedTime).getTime();
-        } else {
-            endMs = Date.now();
+            var pausedAt = new Date(sess.pausedTime).getTime();
+            if (Number.isFinite(pausedAt)) endMs = pausedAt;
         }
         return Math.max(0, endMs - start - pausedMs);
     } catch (e) { return 0; }
 }
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, function (char) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+    });
+}
+
 function fmtHMS(ms) {
     var s = Math.floor(ms / 1000);
     var h = Math.floor(s / 3600); s -= h * 3600;
@@ -206,23 +214,26 @@ function fmtHMS(ms) {
     function p2(n){ return (n < 10 ? "0" : "") + n; }
     return p2(h) + ":" + p2(m) + ":" + p2(s);
 }
+
 function currencySymbol() {
     try { if (window.APP_SETTINGS && APP_SETTINGS.currencySymbol) return APP_SETTINGS.currencySymbol; } catch (e) {}
     return "Rs. ";
 }
+
 function formatCurrency(amount) {
     var sym = currencySymbol();
     var spaced = (sym === "Rs." || sym === "Rs. ") ? "Rs. " : sym;
     return spaced + Number(amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-// ==========================================
-// RENDER
-// ==========================================
+
 var activeCache = [];
 function renderAll() {
     activeCache = loadActiveSessions();
+    var knownTableIds = TABLES.map(function (table) { return table.id; });
     var occupiedIds = {};
-    activeCache.forEach(function (s) { if (s && s.tableId) occupiedIds[s.tableId] = s; });
+    activeCache.forEach(function (s) {
+        if (s && knownTableIds.indexOf(s.tableId) !== -1) occupiedIds[s.tableId] = s;
+    });
     var occupiedCount = Object.keys(occupiedIds).length;
 
     document.getElementById("totalTables").textContent = TABLES.length;
@@ -259,11 +270,12 @@ function renderAll() {
                         (sess && sess.isPaused ? ' <span class="small text-warning"><i class="fas fa-pause"></i></span>' : '') +
                     '</div>' +
                     (sess ? '<div class="session-time"><i class="fas fa-clock"></i> <span id="' + timeId + '">' + fmtHMS(sessionElapsedMs(sess)) + '</span></div>' : '') +
-                    (players ? '<div class="players-line" title="' + players.replace(/"/g, '&quot;') + '"><i class="fas fa-user me-1"></i>' + players + '</div>' : '') +
+                    (players ? '<div class="players-line" title="' + escapeHTML(players) + '"><i class="fas fa-user me-1"></i>' + escapeHTML(players) + '</div>' : '') +
                 '</div>' +
             '</div>';
     });
 }
+
 function tickTimers() {
     activeCache.forEach(function (sess) {
         if (!sess || !sess.tableId) return;
@@ -271,6 +283,7 @@ function tickTimers() {
         if (el && !sess.isPaused) el.textContent = fmtHMS(sessionElapsedMs(sess));
     });
 }
+
 function openTable(tableId) {
     var sess = activeCache.find(function (s) { return s && s.tableId === tableId; });
     if (sess) {
@@ -279,38 +292,18 @@ function openTable(tableId) {
         window.location.href = "start-session.html";
     }
 }
+
 function refreshData() {
     renderAll();
 }
-// ==========================================
-// INIT
-// ==========================================
+
 window.onload = function () {
     showLoggedInStaff();
     renderAll();
     setInterval(tickTimers, 1000);
 };
+
 function showLoggedInStaff() {
     try {
         var raw = sessionStorage.getItem("currentStaff");
         if (raw) {
-            var s = JSON.parse(raw);
-            if (s && s.name) {
-                document.getElementById("loggedInStaff").textContent =
-                    "👤 " + s.name + (s.role ? " — " + s.role : "");
-            }
-        }
-    } catch (e) {}
-}
-// ✅ FIXED: single logout — clears BOTH keys, no duplicate
-function logout() {
-    if (confirm("Are you sure you want to logout?")) {
-        sessionStorage.removeItem("currentStaff");
-        sessionStorage.removeItem("cueclubLoggedIn");
-        window.location.replace("login.html");
-    }
-}
-</script>
-<script src="sidebar.js"></script>
-</body>
-</html>
