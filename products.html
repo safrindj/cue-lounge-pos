@@ -44,8 +44,7 @@
     </style>
 </head>
 <body>
-<!-- ===================================== -->
-<!-- 🔐 PAGE PROTECTION - CHECK LOGIN SESSION -->
+<!-- 🔐 PAGE PROTECTION -->
 <script>
 function checkAuth() {
   const isLoggedIn = (sessionStorage.getItem("cueclubLoggedIn") === "true" || sessionStorage.getItem("currentStaff") !== null);
@@ -55,7 +54,6 @@ function checkAuth() {
 }
 checkAuth();
 </script>
-<!-- ===================================== -->
 
 <!-- Header -->
 <div class="header-bar d-flex align-items-center justify-content-between">
@@ -84,7 +82,7 @@ checkAuth();
 
     <!-- Low Stock Alerts -->
     <div id="lowStockAlertBox" class="low-stock-alert d-none">
-        <strong>⚠️ Low Stock Alert:</strong> Some items need restocking!
+        <strong>⚠️ Stock Alert:</strong> Some items need restocking!
     </div>
 
     <!-- Product List -->
@@ -176,13 +174,13 @@ checkAuth();
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ==========================================
-// CONFIG
-// ==========================================
-const GOOGLE_SCRIPT_URL = ""; // Paste your Web App URL here
+// ✅ Google Apps Script Deployment URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzR0w9MVxhK0VS4ufmbm8vxe1dmZvxb7w1lvsyg_7Neqh-adyolxRvJF1CnE2nO5wYkA/exec";
 
-// Sample Products Data
-let products = [
+const PRODUCTS_KEY = "cueclubProducts";
+
+// Default Products Data
+const DEFAULT_PRODUCTS = [
     { id: "P01", name: "Coca-Cola", category: "Beverages", emoji: "🥤", price: 250, cost: 160, stock: 45, lowStockLevel: 10, quickSell: true },
     { id: "P02", name: "Pepsi", category: "Beverages", emoji: "🥤", price: 250, cost: 155, stock: 32, lowStockLevel: 10, quickSell: true },
     { id: "P03", name: "Water Bottle", category: "Beverages", emoji: "💧", price: 150, cost: 80, stock: 120, lowStockLevel: 20, quickSell: true },
@@ -193,53 +191,100 @@ let products = [
     { id: "P08", name: "Chocolate Bar", category: "Snacks", emoji: "🍫", price: 120, cost: 55, stock: 0, lowStockLevel: 5, quickSell: false }
 ];
 
+let products = [];
 let currentFilter = "all";
 let productModal, deleteModal;
 let deleteTargetId = null;
 
-// ==========================================
+function loadProducts() {
+    try {
+        const saved = localStorage.getItem(PRODUCTS_KEY);
+        if (saved === null) {
+            products = DEFAULT_PRODUCTS.map(product => ({ ...product }));
+            saveProducts();
+            return;
+        }
+
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) throw new Error("Saved products must be an array");
+
+        const usedIds = new Set();
+        products = parsed.filter(item => item && typeof item === "object").map((item, index) => {
+            let id = String(item.id ?? "").trim();
+            if (!id || usedIds.has(id)) id = `PRODUCT-${index + 1}`;
+            while (usedIds.has(id)) id += "-1";
+            usedIds.add(id);
+
+            const numberOr = (value, fallback) => {
+                const number = Number(value);
+                return Number.isFinite(number) && number >= 0 ? number : fallback;
+            };
+            return {
+                id,
+                name: String(item.name ?? "").trim(),
+                category: String(item.category ?? "Other"),
+                emoji: String(item.emoji ?? "📦"),
+                price: numberOr(item.price, 0),
+                cost: numberOr(item.cost, 0),
+                stock: numberOr(item.stock, 0),
+                lowStockLevel: numberOr(item.lowStockLevel, 10),
+                quickSell: item.quickSell === true || item.quickSell === "true"
+            };
+        }).filter(item => item.name);
+    } catch (e) {
+        products = DEFAULT_PRODUCTS.map(product => ({ ...product }));
+        saveProducts();
+    }
+}
+
+function saveProducts() {
+    try {
+        localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+    } catch (e) {
+        console.warn("Products could not be saved in this browser.", e);
+    }
+
+    // Optional: Sync to Google Sheets
+    if (GOOGLE_SCRIPT_URL) {
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'saveProducts', items: products })
+        }).catch(() => {});
+    }
+}
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+}
+
 // INIT
-// ==========================================
 window.onload = function() {
     productModal = new bootstrap.Modal(document.getElementById('productModal'));
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-    try {
-        const savedProducts = localStorage.getItem("cueclub-products");
-        if (savedProducts) {
-            const parsedProducts = JSON.parse(savedProducts);
-            if (Array.isArray(parsedProducts)) products = parsedProducts;
-        }
-    } catch (error) {
-        console.warn("Saved products could not be loaded.", error);
-    }
+    document.getElementById("productContainer").addEventListener("click", event => {
+        const button = event.target.closest("[data-product-action]");
+        if (!button) return;
+        if (button.dataset.productAction === "edit") editProduct(button.dataset.productId);
+        if (button.dataset.productAction === "delete") openDeleteModal(button.dataset.productId);
+    });
 
+    loadProducts();
     renderProducts();
     checkLowStock();
 };
 
-// ==========================================
 // RENDER & FILTER
-// ==========================================
-function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>\"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "\"": "&quot;",
-        "'": "&#39;"
-    })[character]);
-}
-
 function renderProducts() {
     const container = document.getElementById("productContainer");
     const filtered = getFilteredProducts();
     const grouped = {};
 
-    filtered.forEach(product => {
-        const category = product.category || "Other";
-        if (!grouped[category]) grouped[category] = [];
-        grouped[category].push(product);
+    filtered.forEach(p => {
+        if (!grouped[p.category]) grouped[p.category] = [];
+        grouped[p.category].push(p);
     });
 
     container.innerHTML = "";
@@ -248,36 +293,32 @@ function renderProducts() {
         return;
     }
 
-    Object.keys(grouped).sort().forEach(category => {
-        container.innerHTML += `<h6 class="category-title">${escapeHTML(category)}</h6>`;
-
-        grouped[category].forEach(product => {
-            const isLowStock = Number(product.stock) <= Number(product.lowStockLevel);
-            const stockClass = isLowStock ? "stock-low" : "stock-good";
-            const cardClass = (isLowStock ? "low-stock " : "") + (product.quickSell ? "quick-sell" : "");
-            const id = escapeHTML(product.id);
-            const name = escapeHTML(product.name);
-            const emoji = escapeHTML(product.emoji || "📦");
-
+    Object.keys(grouped).sort().forEach(cat => {
+        container.innerHTML += `<h6 class="category-title">${escapeHTML(cat)}</h6>`;
+        grouped[cat].forEach(p => {
+            const isLow = Number(p.stock) <= Number(p.lowStockLevel);
+            const stockClass = isLow ? "stock-low" : "stock-good";
+            const cardClass = (isLow ? "low-stock " : "") + (p.quickSell ? "quick-sell" : "");
+            
             container.innerHTML += `
-                <div class="product-card ${cardClass}" data-name="${name.toLowerCase()}">
+                <div class="product-card ${cardClass}">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
-                            <span class="product-emoji">${emoji}</span>
+                            <span class="product-emoji">${escapeHTML(p.emoji || "📦")}</span>
                             <div>
-                                <div class="product-name">${name}</div>
+                                <div class="product-name">${escapeHTML(p.name)}</div>
                                 <div class="d-flex align-items-center gap-2 mt-1">
-                                    <span class="price-tag">Rs. ${escapeHTML(product.price)}</span>
+                                    <span class="price-tag">Rs. ${Number(p.price).toLocaleString()}</span>
                                     <span class="stock-badge ${stockClass}">
-                                        ${isLowStock ? '⚠️ ' : ''}Stock: ${escapeHTML(product.stock)}
+                                        ${isLow ? '⚠️ ' : ''}Stock: ${p.stock}
                                     </span>
-                                    ${product.quickSell ? '<span class="text-success small">⚡</span>' : ''}
+                                    ${p.quickSell ? '<span class="text-success small">⚡</span>' : ''}
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex flex-column">
-                            <button class="btn-edit" type="button" aria-label="Edit ${name}" onclick="editProduct('${id}')"><i class="fas fa-edit"></i></button>
-                            <button class="btn-delete" type="button" aria-label="Delete ${name}" onclick="openDeleteModal('${id}')"><i class="fas fa-trash"></i></button>
+                            <button class="btn-edit" type="button" data-product-action="edit" data-product-id="${escapeHTML(p.id)}" aria-label="Edit ${escapeHTML(p.name)}"><i class="fas fa-edit"></i></button>
+                            <button class="btn-delete" type="button" data-product-action="delete" data-product-id="${escapeHTML(p.id)}" aria-label="Delete ${escapeHTML(p.name)}"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                 </div>
@@ -288,18 +329,12 @@ function renderProducts() {
 
 function getFilteredProducts() {
     let list = [...products];
-    const searchText = document.getElementById("searchInput").value.toLowerCase();
-    
-    if (searchText) {
-        list = list.filter(p => p.name.toLowerCase().includes(searchText));
-    }
-    
-    if (currentFilter === "quicksell") {
-        list = list.filter(p => p.quickSell);
-    } else if (currentFilter === "lowstock") {
-        list = list.filter(p => p.stock <= p.lowStockLevel);
-    }
-    
+    const search = document.getElementById("searchInput").value.trim().toLowerCase();
+
+    if (search) list = list.filter(p => String(p.name ?? "").toLowerCase().includes(search));
+    if (currentFilter === "quicksell") list = list.filter(p => p.quickSell);
+    if (currentFilter === "lowstock") list = list.filter(p => Number(p.stock) <= Number(p.lowStockLevel));
+
     return list;
 }
 
@@ -316,27 +351,16 @@ function filterProducts() {
 }
 
 function checkLowStock() {
-    const lowStockItems = products.filter(product =>
-        Number(product.stock) <= Number(product.lowStockLevel) && Number(product.stock) > 0
-    );
-    const outOfStockItems = products.filter(product => Number(product.stock) <= 0);
-    const alertBox = document.getElementById("lowStockAlertBox");
-    const totalAlerts = lowStockItems.length + outOfStockItems.length;
-
-    alertBox.classList.toggle("d-none", totalAlerts === 0);
-    if (totalAlerts > 0) {
-        const details = [];
-        if (lowStockItems.length) details.push(`${lowStockItems.length} low-stock`);
-        if (outOfStockItems.length) details.push(`${outOfStockItems.length} out-of-stock`);
-        alertBox.innerHTML = `<strong>⚠️ Stock Alert:</strong> ${details.join(" and ")} item${totalAlerts === 1 ? " needs" : "s need"} attention.`;
-    }
-}
-
-function saveProductsToStorage() {
-    try {
-        localStorage.setItem("cueclub-products", JSON.stringify(products));
-    } catch (error) {
-        console.warn("Products could not be saved in this browser.", error);
+    const lowItems = products.filter(p => Number(p.stock) <= Number(p.lowStockLevel) && Number(p.stock) > 0);
+    const outItems = products.filter(p => Number(p.stock) <= 0);
+        const alertBox = document.getElementById("lowStockAlertBox");
+    const total = lowItems.length + outItems.length;
+    alertBox.classList.toggle("d-none", total === 0);
+    if (total > 0) {
+        const messages = [];
+        if (lowItems.length) messages.push(`${lowItems.length} item${lowItems.length === 1 ? "" : "s"} running low`);
+        if (outItems.length) messages.push(`${outItems.length} item${outItems.length === 1 ? "" : "s"} out of stock`);
+        alertBox.innerHTML = `<strong>⚠️ Stock Alert:</strong> ${messages.join("; ")}.`;
     }
 }
 
@@ -355,50 +379,45 @@ function openAddProductModal() {
 }
 
 function editProduct(id) {
-    const product = products.find(item => String(item.id) === String(id));
+    const product = products.find(item => item.id === id);
     if (!product) return;
 
     document.getElementById("modalTitle").textContent = "Edit Product";
     document.getElementById("editProductId").value = product.id;
     document.getElementById("prodName").value = product.name;
     document.getElementById("prodCategory").value = product.category;
-    document.getElementById("prodEmoji").value = product.emoji || "";
+    document.getElementById("prodEmoji").value = product.emoji;
     document.getElementById("prodPrice").value = product.price;
-    document.getElementById("prodCost").value = product.cost ?? "";
+    document.getElementById("prodCost").value = product.cost;
     document.getElementById("prodStock").value = product.stock;
     document.getElementById("prodLowStock").value = product.lowStockLevel;
-    document.getElementById("prodQuickSell").checked = Boolean(product.quickSell);
+    document.getElementById("prodQuickSell").checked = product.quickSell;
     productModal.show();
 }
 
 function saveProduct() {
     const name = document.getElementById("prodName").value.trim();
-    const priceInput = document.getElementById("prodPrice").value;
-    const costInput = document.getElementById("prodCost").value;
-    const stockInput = document.getElementById("prodStock").value;
-    const lowStockInput = document.getElementById("prodLowStock").value;
-    const price = Number(priceInput);
-    const cost = costInput === "" ? 0 : Number(costInput);
-    const stock = Number(stockInput);
-    const lowStockLevel = Number(lowStockInput);
+    const priceValue = document.getElementById("prodPrice").value.trim();
+    const stockValue = document.getElementById("prodStock").value.trim();
+    const costValue = document.getElementById("prodCost").value.trim();
+    const lowValue = document.getElementById("prodLowStock").value.trim();
+    const price = Number(priceValue);
+    const stock = Number(stockValue);
+    const cost = costValue === "" ? 0 : Number(costValue);
+    const lowStockLevel = lowValue === "" ? 10 : Number(lowValue);
 
-    if (!name) {
-        alert("Please enter a product name.");
-        document.getElementById("prodName").focus();
-        return;
-    }
-    if (priceInput === "" || !Number.isFinite(price) || price < 0 ||
-        (costInput !== "" && (!Number.isFinite(cost) || cost < 0)) ||
-        stockInput === "" || !Number.isInteger(stock) || stock < 0 ||
-        lowStockInput === "" || !Number.isInteger(lowStockLevel) || lowStockLevel < 0) {
-        alert("Enter valid non-negative prices and whole-number stock values.");
+    if (!name || priceValue === "" || stockValue === "" ||
+        !Number.isFinite(price) || price < 0 ||
+        !Number.isInteger(stock) || stock < 0 ||
+        !Number.isFinite(cost) || cost < 0 ||
+        !Number.isInteger(lowStockLevel) || lowStockLevel < 0) {
+        alert("Enter a product name, a valid non-negative price, and whole-number stock and alert levels. Cost must also be non-negative.");
         return;
     }
 
-    const editId = document.getElementById("editProductId").value;
-    const existing = products.find(item => String(item.id) === editId);
+    const id = document.getElementById("editProductId").value;
     const product = {
-        id: existing ? existing.id : `P${Date.now().toString(36).toUpperCase()}`,
+        id: id || `P-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name,
         category: document.getElementById("prodCategory").value,
         emoji: document.getElementById("prodEmoji").value.trim() || "📦",
@@ -409,36 +428,35 @@ function saveProduct() {
         quickSell: document.getElementById("prodQuickSell").checked
     };
 
-    if (existing) {
-        products = products.map(item => String(item.id) === editId ? product : item);
-    } else {
-        products.push(product);
-    }
+    const existingIndex = products.findIndex(item => item.id === id);
+    if (existingIndex >= 0) products[existingIndex] = product;
+    else products.push(product);
 
-    saveProductsToStorage();
-    productModal.hide();
+    saveProducts();
     renderProducts();
     checkLowStock();
+    productModal.hide();
 }
 
 function openDeleteModal(id) {
-    const product = products.find(item => String(item.id) === String(id));
+    const product = products.find(item => item.id === id);
     if (!product) return;
-    deleteTargetId = product.id;
+    deleteTargetId = id;
     document.getElementById("deleteProductName").textContent = product.name;
     deleteModal.show();
 }
 
 function confirmDelete() {
     if (deleteTargetId === null) return;
-    products = products.filter(product => String(product.id) !== String(deleteTargetId));
+    products = products.filter(item => item.id !== deleteTargetId);
     deleteTargetId = null;
-    saveProductsToStorage();
-    deleteModal.hide();
+    saveProducts();
     renderProducts();
     checkLowStock();
+    deleteModal.hide();
 }
 </script>
-<script src="sidebar.js"></script>
 </body>
 </html>
+
+    
